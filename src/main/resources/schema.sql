@@ -1,3 +1,5 @@
+
+
 create table if not exists audit_logs
 (
     log_id         bigint unsigned auto_increment
@@ -34,14 +36,13 @@ create table if not exists batches
     check (`quantity_remaining` >= 0),
     check (`purchase_price` >= 0),
     check (`selling_price` >= 0),
-    check (`status` in (_utf8mb4\'active\',_utf8mb4\'expired\',_utf8mb4\'damaged\'))
+    check (status in ('active', 'expired', 'damaged')),
+
+    INDEX idx_batches_item_expiration (item_id, expiration_date),
+    INDEX idx_batches_status (status)
     );
 
-create index idx_batches_item_expiration
-    on batches (item_id, expiration_date);
 
-create index idx_batches_status
-    on batches (status);
 
 create table if not exists customers
 (
@@ -79,11 +80,12 @@ create table if not exists items
     created_at            timestamp      default CURRENT_TIMESTAMP                                                           null,
     updated_at            timestamp      default CURRENT_TIMESTAMP                                                           null on update CURRENT_TIMESTAMP,
     constraint barcode
-    unique (barcode)
+    unique (barcode),
+    INDEX idx_items_category_type (category)
+
     );
 
-create index idx_items_category_type
-    on items (category);
+
 
 create table if not exists products
 (
@@ -123,12 +125,10 @@ create table if not exists purchases
     status                 varchar(20)    not null,
     total_amount           decimal(14, 2) null,
     supplier_id            int            not null,
-    check (`status` in (_utf8mb4\'pending\',_utf8mb4\'delivered\',_utf8mb4\'cancelled\')),
-    check (`total_amount` >= 0)
+    check (status in ('pending', 'delivered', 'cancelled')),
+    check (`total_amount` >= 0),
+    INDEX idx_purchase_orders_supplier(supplier_id)
     );
-
-create index idx_purchase_orders_supplier
-    on purchases (supplier_id);
 
 create table if not exists sale_items
 (
@@ -144,17 +144,13 @@ create table if not exists sale_items
     unique (sale_item_id),
     check (`quantity` >= 0),
     check (`unit_price` > 0),
-    check (`subtotal` >= 0)
+    check (`subtotal` >= 0),
+
+    INDEX idx_sale_items_batch (batch_id),
+    INDEX idx_sale_items (item_id),
+    INDEX idx_sale_items_sale(sale_id)
+
     );
-
-create index idx_sale_items_batch
-    on sale_items (batch_id);
-
-create index idx_sale_items_item
-    on sale_items (item_id);
-
-create index idx_sale_items_sale
-    on sale_items (sale_id);
 
 create table if not exists sales
 (
@@ -169,11 +165,10 @@ create table if not exists sales
     unique (sale_id),
     check (`total_amount` >= 0),
     check (`discount` >= 0),
-    check (`payment_method` in (_utf8mb4\'cash\',_utf8mb4\'card\',_utf8mb4\'insurance\'))
-    );
+    check (payment_method in ('cash', 'card', 'insurance')),
 
-create index idx_sales_customer
-    on sales (customer_id);
+    INDEX idx_sales_customer (customer_id)
+    );
 
 create table if not exists stock_adjustments
 (
@@ -190,11 +185,11 @@ create table if not exists stock_adjustments
     constraint adjustment_id
     unique (adjustment_id),
     check (`old_quantity` >= 0),
-    check (`new_quantity` >= 0)
+    check (`new_quantity` >= 0),
+
+    INDEX idx_stock_adj_item_batch(item_id, batch_id)
     );
 
-create index idx_stock_adj_item_batch
-    on stock_adjustments (item_id, batch_id);
 
 create table if not exists suppliers
 (
@@ -207,7 +202,9 @@ create table if not exists suppliers
     address        varchar(255)                        null,
     license_number varchar(100)                        null,
     payment_terms  varchar(100)                        null,
-    created_at     timestamp default CURRENT_TIMESTAMP null
+    created_at     timestamp default CURRENT_TIMESTAMP null,
+
+    INDEX index_supplier_name (name)
     );
 
 create table if not exists item_suppliers
@@ -219,14 +216,11 @@ create table if not exists item_suppliers
     constraint fk_supplier_id
     foreign key (item_supplier_id) references suppliers (supplier_id),
     constraint item_suppliers_ibfk_1
-    foreign key (item_id) references items (item_id)
+    foreign key (item_id) references items (item_id),
+
+    INDEX item_id(item_id)
     );
 
-create index item_id
-    on item_suppliers (item_id);
-
-create index index_supplier_name
-    on suppliers (name);
 
 create table if not exists users
 (
@@ -241,7 +235,7 @@ create table if not exists users
     unique (email),
     constraint user_id
     unique (user_id),
-    check (`role` in (_utf8mb4\'admin\',_utf8mb4\'pharmacist\',_utf8mb4\'cashier\',_utf8mb4\'manager\'))
+    check (role in ('admin', 'pharmacist', 'cashier', 'manager'))
     );
 
 create table if not exists waste
@@ -257,9 +251,7 @@ create table if not exists waste
     constraint waste_id
     unique (waste_id),
     check (`quantity_removed` >= 0),
-    check (`reason` in (_utf8mb4\'expired\',_utf8mb4\'damaged\',_utf8mb4\'recalled\'))
+    check (reason in ('expired', 'damaged', 'recalled')),
+    INDEX idx_waste_batch (batch_id)
     );
-
-create index idx_waste_batch
-    on waste (batch_id);
 

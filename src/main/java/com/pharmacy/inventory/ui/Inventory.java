@@ -1,195 +1,96 @@
 package com.pharmacy.inventory.ui;
 
-import com.pharmacy.inventory.dao.ItemDAO; // Import your DAO
+import com.pharmacy.inventory.dao.ItemDAO;
+import com.pharmacy.inventory.dao.BatchDAO;
+import com.pharmacy.inventory.dao.SalesDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import jakarta.annotation.PostConstruct; // Import this
+import jakarta.annotation.PostConstruct;
 import javax.swing.*;
-import javax.swing.border.TitledBorder;
-import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.util.ArrayList;
 
-@Component // Tells Spring to manage this UI class
+@Component
 public class Inventory {
+    @Autowired private ItemDAO itemDAO;
+    @Autowired private BatchDAO batchDAO;
+    @Autowired private SalesDAO salesDAO;
+    private static BatchDetailsPanel batchDetailView;
 
-    @Autowired
-    private ItemDAO itemDAO; // Inject the DAO you wrote
+    private JFrame frame;
+    private static JPanel mainContent;
+    private static CardLayout cardLayout;
 
-    protected JFrame frame;
-    protected JButton[] buttonChoice = new JButton[8]; // home,
-    protected JButton sign;
-    protected JTextField search;
-    protected JPanel leftButton;
-    protected JPanel namePanel;
-    protected JPanel products; // displays table  n product details
-    protected JPanel rightLeft; // to display table
-    protected JPanel rightRight; // to display product details
-    protected JTextField adminName;
-    protected JComboBox<String> c;
-    protected JButton addingNewSupp;
-    protected JButton[] addEditDel; // add edit and del button
-    protected JLabel[] ppdqcsB;
-    Font myFont = new Font("Segoe Script", Font.BOLD,15);
-
-    // IMPORTANT: Remove the "new Inventory()" from main.
-    // We will use a setup method instead.
-    public Inventory() {
-        // Leave constructor empty or use for basic init
-    }
-
-    @PostConstruct // This runs AFTER Spring has injected the DAO
+    @PostConstruct
     public void init() {
-        prepareGUI();
-        loadTableData(); // Call our new method to fill the table
+        SwingUtilities.invokeLater(this::prepareGUI);
     }
 
     private void prepareGUI() {
-        frame = new JFrame("Team-HA OOP proj");
-        frame.setTitle("Inventory");
-        frame.setSize(700,500);
+        frame = new JFrame("Pharmacy Management System v1.0");
+        frame.setSize(1350, 850);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setLocation(550,0);
         frame.setLayout(new BorderLayout());
-        frame.getContentPane().setFont(myFont);
 
-        buttonChoice[0] = new JButton("Home");
-        buttonChoice[1] = new JButton("Products");
-        buttonChoice[2] = new JButton("Current Stock");
-        buttonChoice[3] = new JButton("Customers");
-        buttonChoice[4] = new JButton("Suppliers");
-        buttonChoice[5] = new JButton("Sales");
-        buttonChoice[6] = new JButton("Purchase");
-        buttonChoice[7] = new JButton("Users");
-        for(int i= 0; i< 8; i++){
-            buttonChoice[i].addActionListener(new InventoryEvents(this));
-        }
+        cardLayout = new CardLayout();
+        mainContent = new JPanel(cardLayout);
 
-        leftButton = new JPanel();
-        leftButton.setLayout(new GridLayout(8,1,0,10));
-        leftButton.setBorder(null);
-        leftButton.setBounds(50,100,100,400);
+        // Initialize Specialized Panels
+        HomePanel homePage = new HomePanel(salesDAO, itemDAO, batchDAO);
+        ProductsPanel productsPage = new ProductsPanel(itemDAO);
 
-        for(int i = 0; i < 8;i++){
-            leftButton.add(buttonChoice[i]);
+        JScrollPane homeScroll = new JScrollPane(homePage);
+        homeScroll.setBorder(null);
+        homeScroll.getVerticalScrollBar().setUnitIncrement(16);
 
-        }
+        batchDetailView = new BatchDetailsPanel(batchDAO);
 
-        rightRight = new JPanel();
-        rightRight.setBorder(new TitledBorder("Product Table"));
-        rightRight.setLayout(new BorderLayout(50,50));
-        ArrayList<String> listOfSuppliers = new ArrayList<>();
-        listOfSuppliers.add("Dell");
-        listOfSuppliers.add("HP");
-        listOfSuppliers.add("Toshiba");
-        c = new JComboBox<>(listOfSuppliers.toArray(new String[0]));
+        mainContent.add(batchDetailView, "BatchDetails");
+        mainContent.add(homeScroll, "Home");
+        mainContent.add(productsPage, "Products");
 
-        addEditDel = new JButton[3];
-        addEditDel[0] = new JButton("Add");
-        addEditDel[1] = new JButton("Edit");
-        addEditDel[2] = new JButton("Delete");
-        JPanel butPanel = new JPanel(); // sub panel for ADD EDIT DELETE
-        butPanel.setLayout(new FlowLayout());
-        for(int i = 0; i < 3; i++){
-            butPanel.add(addEditDel[i]);
-            addEditDel[i].setFont(myFont);
-        }
-        for(int i = 0; i < 3; i++){
-            addEditDel[i].addActionListener(new InventoryEvents(this));
-        }
-        ppdqcsB = new JLabel[7];
-        ppdqcsB[0] = new JLabel("Product Code: ");
-        ppdqcsB[1] = new JLabel("Product Name: ");
-        ppdqcsB[2] = new JLabel("Data: ");
-        ppdqcsB[3] = new JLabel("Quantity: ");
-        ppdqcsB[4] = new JLabel("Cost Price: ");
-        ppdqcsB[5] = new JLabel("Selling Price: ");
-        ppdqcsB[6] = new JLabel("Brand: ");
+        // UI Components
+        frame.add(createHeader(), BorderLayout.NORTH);
+        frame.add(createSidebar(), BorderLayout.WEST);
+        frame.add(mainContent, BorderLayout.CENTER);
 
-        addingNewSupp = new JButton("Click to add a new Suplier");
-        JTextField[] fields = new JTextField[7];
-        GridBagConstraints forRightLeft = new GridBagConstraints();
-        forRightLeft.anchor = GridBagConstraints.WEST;
-        forRightLeft.insets = new Insets(5,5,5,5);
-        rightLeft = new JPanel(); // to displays table
-        rightLeft.setBorder(new TitledBorder("Product Details"));
-        rightLeft.setLayout(new GridBagLayout());
-        forRightLeft.gridx = 0;
-        forRightLeft.gridy = 0;
-        forRightLeft.gridwidth = 2;
-        forRightLeft.fill = GridBagConstraints.HORIZONTAL;
-        forRightLeft.weighty = 1.0;
-        rightLeft.add(c, forRightLeft);
-        for(int i = 0; i < 8; i++){
-            if(i == 0){
-                forRightLeft.gridx = 0;
-                forRightLeft.gridy = 1;
-                forRightLeft.gridwidth = 2;
-                rightLeft.add(addingNewSupp, forRightLeft);
-            }
-            else{
-                forRightLeft.weightx = 1.0;
-                fields[i-1] = new JTextField(15);
-                forRightLeft.gridy = i + 1;
-                forRightLeft.gridx = 0;
-                forRightLeft.gridwidth = 1;
-                rightLeft.add(ppdqcsB[i-1], forRightLeft);
-                forRightLeft.gridx =1;
-                rightLeft.add(fields[i -1], forRightLeft);
-            }
-            if(i >= 0 && i < 3){
-                forRightLeft.gridwidth = 2;
-                forRightLeft.gridy = 9;
-                rightLeft.add(butPanel, forRightLeft);
-            }
-        }
+        cardLayout.show(mainContent, "Home");
 
-        adminName = new JTextField();
-        adminName.setEditable(false);
-        adminName.setLayout(new BorderLayout());
-        adminName.setBounds(10,10,450,150);
-        adminName.setText("User");
-
-        sign = new JButton("Sign in/out");
-
-        namePanel = new JPanel();
-        namePanel.setLayout(new BorderLayout());
-        namePanel.setBorder(new TitledBorder("User"));
-        namePanel.setBounds(0,0,500,100);
-        namePanel.setSize(400,100);
-        namePanel.add(adminName, BorderLayout.CENTER);
-        namePanel.add(sign, BorderLayout.AFTER_LINE_ENDS);
-
-        search = new JTextField();
-        search.setEditable(true);
-        search.setBounds(5,5,100,100);
-
-        products = new JPanel();
-        products.setBorder(new TitledBorder("Products"));
-        products.setLayout(new BorderLayout());
-        products.add(search, BorderLayout.BEFORE_FIRST_LINE);
-        products.add(rightLeft, BorderLayout.EAST);
-        products.add(rightRight, BorderLayout.CENTER);
-
-
-        frame.add(namePanel, BorderLayout.NORTH);
-        frame.add(leftButton, BorderLayout.WEST);
-        frame.add(products);
+        frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
 
-    public void loadTableData() {
-        // Use your DAO to get the real table model
-        DefaultTableModel model = itemDAO.getAllItems();
+    private JPanel createHeader() {
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBackground(new Color(52, 73, 94));
+        header.setPreferredSize(new Dimension(0, 50));
+        JLabel title = new JLabel("  PHARMACY OS");
+        title.setForeground(Color.WHITE);
+        title.setFont(new Font("SansSerif", Font.BOLD, 18));
+        header.add(title, BorderLayout.WEST);
+        return header;
+    }
 
-        // Create the JTable with your real database data
-        JTable table = new JTable(model);
-        JScrollPane scrollPane = new JScrollPane(table);
+    private JPanel createSidebar() {
+        JPanel sidebar = new JPanel(new GridLayout(10, 1, 5, 5));
+        sidebar.setPreferredSize(new Dimension(200, 0));
+        sidebar.setBackground(new Color(45, 52, 54));
 
-        // Add it to the rightRight panel (where teammate wanted the table)
-        rightRight.removeAll();
-        rightRight.add(scrollPane, BorderLayout.CENTER);
-        rightRight.revalidate();
-        rightRight.repaint();
+        String[] menuItems = {"Home", "Products", "Sales", "Stock"};
+        for (String item : menuItems) {
+            JButton btn = new JButton(item);
+            btn.setFocusPainted(false);
+            btn.addActionListener(e -> cardLayout.show(mainContent, item));
+            sidebar.add(btn);
+        }
+        return sidebar;
+    }
+
+    public static void showBatchPanel(int itemId, String itemName) {
+        batchDetailView.loadBatches(itemId, itemName);
+        cardLayout.show(mainContent, "BatchDetails");
+    }
+
+    public static void showPage(String pageName) {
+        cardLayout.show(mainContent, pageName);
     }
 }
