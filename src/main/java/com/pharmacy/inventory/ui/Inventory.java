@@ -37,6 +37,13 @@ public class Inventory {
         // Initialize Specialized Panels
         HomePanel homePage = new HomePanel(salesDAO, itemDAO, batchDAO);
         ProductsPanel productsPage = new ProductsPanel(itemDAO);
+        SalesPanel salesPage = new SalesPanel(salesDAO, itemDAO); // Add this after HomePanel
+
+// Inside mainContent.add() section
+        mainContent.add(salesPage, "Sales");
+
+// Inside createSidebar() menuItems array
+        String[] menuItems = {"Home", "Products", "Sales", "Stock"}; // Ensure "Sales" is there
 
         JScrollPane homeScroll = new JScrollPane(homePage);
         homeScroll.setBorder(null);

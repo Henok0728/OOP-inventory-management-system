@@ -16,14 +16,26 @@ public class HomePanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         // --- SECTION 1: TOP KPI CARDS ---
+        // --- SECTION 1: TOP KPI CARDS ---
         JPanel kpiContainer = new JPanel(new GridLayout(1, 4, 15, 0));
         kpiContainer.setOpaque(false);
         kpiContainer.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
 
-        kpiContainer.add(createKpiCard("Today's Profit", "$" + salesDAO.getTodaysProfit(), new Color(40, 167, 69)));
-        kpiContainer.add(createKpiCard("Today's Sales", salesDAO.getTodaysSalesCount() + " Items", new Color(0, 123, 255)));
-        kpiContainer.add(createKpiCard("Expiring Soon", "Check Alerts", new Color(220, 53, 69)));
-        kpiContainer.add(createKpiCard("Low Stock", "Check Batches", new Color(255, 193, 7)));
+// Real Profit
+        double profit = salesDAO.getTodaysProfit();
+        kpiContainer.add(createKpiCard("Today's Profit", "$" + String.format("%.2f", profit), new Color(40, 167, 69)));
+
+// Real Revenue (Sales)
+        double revenue = salesDAO.getTodaysSalesRevenue();
+        kpiContainer.add(createKpiCard("Today's Revenue", "$" + String.format("%.2f", revenue), new Color(0, 123, 255)));
+
+// Real Expiry Count (Adding a method to BatchDAO if you have it)
+        int expiringCount = batchDAO.getExpiringBatchesModel().getRowCount();
+        kpiContainer.add(createKpiCard("Expiring Soon", expiringCount + " Batches", new Color(220, 53, 69)));
+
+// Real Low Stock Count
+        int lowStockCount = batchDAO.getLowStockBatchesModel().getRowCount();
+        kpiContainer.add(createKpiCard("Low Stock", lowStockCount + " Items", new Color(255, 193, 7)));
 
         add(kpiContainer);
         add(Box.createRigidArea(new Dimension(0, 20))); // Spacing
@@ -99,5 +111,18 @@ public class HomePanel extends JPanel {
         JScrollPane scroll = new JScrollPane(table);
         container.add(scroll, BorderLayout.CENTER);
         return container;
+    }
+
+    public void refreshData() {
+        this.removeAll(); // Clear current components
+        // Re-initialize the panel components
+        initializeUI();
+        this.revalidate();
+        this.repaint();
+    }
+
+    private void initializeUI() {
+        // Move all the constructor logic into this method
+        // (Layout, KPI Cards, Section Panels, etc.)
     }
 }

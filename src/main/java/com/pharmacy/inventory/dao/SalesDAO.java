@@ -78,22 +78,30 @@ public class SalesDAO {
 
     public boolean processSale(int customerId, int itemId, int batchId, int qty, double price, String method) {
         String insertSale = "INSERT INTO sales (customer_id, total_amount, payment_method) VALUES (?, ?, ?)";
-        String insertItem = "INSERT INTO sale_items (sale_id, item_id, batch_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)";
+        String insertItem = "INSERT INTO sale_items (sale_id, item_id, batch_id, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?, ?)";
         String updateStock = "UPDATE batches SET quantity_remaining = quantity_remaining - ? WHERE batch_id = ?";
 
         try (Connection conn = dataSource.getConnection()) {
-            conn.setAutoCommit(false); // Start Transaction
+            conn.setAutoCommit(false);
 
             try {
                 // 1. Create Sale Header
                 PreparedStatement ps1 = conn.prepareStatement(insertSale, Statement.RETURN_GENERATED_KEYS);
-                ps1.setInt(1, customerId);
+
+                // --- ADDED LOGIC HERE ---
+                if (customerId <= 0) {
+                    ps1.setNull(1, java.sql.Types.INTEGER); // Properly sends NULL to MySQL
+                } else {
+                    ps1.setInt(1, customerId);
+                }
+                // ------------------------
+
                 ps1.setDouble(2, qty * price);
                 ps1.setString(3, method);
                 ps1.executeUpdate();
 
                 ResultSet rs = ps1.getGeneratedKeys();
-                rs.next();
+                if (!rs.next()) throw new SQLException("Generated Key failed");
                 long saleId = rs.getLong(1);
 
                 // 2. Create Sale Item
@@ -103,6 +111,7 @@ public class SalesDAO {
                 ps2.setInt(3, batchId);
                 ps2.setInt(4, qty);
                 ps2.setDouble(5, price);
+                ps2.setDouble(6, qty * price);
                 ps2.executeUpdate();
 
                 // 3. Decrease Inventory
@@ -111,10 +120,10 @@ public class SalesDAO {
                 ps3.setInt(2, batchId);
                 ps3.executeUpdate();
 
-                conn.commit(); // Save everything
+                conn.commit();
                 return true;
             } catch (SQLException e) {
-                conn.rollback(); // Undo everything if there is an error
+                conn.rollback();
                 e.printStackTrace();
                 return false;
             }
@@ -122,5 +131,14 @@ public class SalesDAO {
             e.printStackTrace();
             return false;
         }
+    }
+    public double getTodaysSalesRevenue() {
+        String sql = "SELECT SUM(total_amount) FROM sales WHERE DATE(sale_date) = CURDATE()";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) return rs.getDouble(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0.0;
     }
 }
