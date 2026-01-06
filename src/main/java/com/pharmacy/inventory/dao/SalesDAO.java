@@ -24,7 +24,9 @@ public class SalesDAO {
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             if (rs.next()) return rs.getDouble(1);
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         return 0.0;
     }
 
@@ -35,7 +37,9 @@ public class SalesDAO {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
+
             if (rs.next()) return rs.getInt(1);
+
         } catch (SQLException e) { e.printStackTrace(); }
         return 0;
     }
@@ -44,12 +48,6 @@ public class SalesDAO {
         DefaultTableModel model = new DefaultTableModel(
                 new String[]{"Time", "Item Name", "Qty", "Total Price"}, 0);
 
-        /**
-         * SCHEMA FIX:
-         * 1. Your schema uses 'sale_date' as a TIMESTAMP (contains both date and time).
-         * 2. We use TIME(s.sale_date) to extract just the clock time for the table.
-         * 3. We join 'sales' -> 'sale_items' -> 'items' to get the product names.
-         */
         String sql = "SELECT TIME(s.sale_date) as time_only, i.name, si.quantity, si.subtotal " +
                 "FROM sales s " +
                 "JOIN sale_items si ON s.sale_id = si.sale_id " +
@@ -66,12 +64,12 @@ public class SalesDAO {
                         rs.getString("time_only"),
                         rs.getString("name"),
                         rs.getInt("quantity"),
-                        "$" + String.format("%.2f", rs.getDouble("subtotal"))
+                        "ETB " + String.format("%.2f", rs.getDouble("subtotal"))
                 });
             }
         } catch (SQLException e) {
             System.err.println("Dashboard Error (Sales Detail): " + e.getMessage());
-            // Returns empty model to keep UI alive
+
         }
         return model;
     }

@@ -47,7 +47,7 @@ public class ItemDAO {
                 dtm.addRow(row);
             }
         } catch (SQLException e) {
-            System.out.println("Something went wrong!");
+            System.out.println("Something went wrong while, fetching all items!");
         }
         return dtm;
     }
@@ -57,7 +57,7 @@ public class ItemDAO {
                 "dosage_form, strength, retail_price, reorder_level, prescription_required) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        // FIX: Added Statement.RETURN_GENERATED_KEYS to the prepareStatement call
+
         try (Connection conn = dataSource.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
@@ -95,7 +95,7 @@ public class ItemDAO {
                 "LEFT JOIN batches b ON i.item_id = b.item_id " +
                 "WHERE i.name LIKE ? OR i.brand_name LIKE ? OR i.barcode LIKE ?";
 
-        String[] columnNames = {"Product Name", "Brand", "Category", "Price", "Stock", "Expiry", "Rx"};
+        String[] columnNames = {"Item N0","Product Name", "Brand", "Category", "Price", "Stock", "Expiry", "Rx"};
         DefaultTableModel model = new DefaultTableModel(columnNames, 0);
 
         String searchPattern = "%" + query + "%";
@@ -117,7 +117,7 @@ public class ItemDAO {
                         rs.getBigDecimal("retail_price"),
                         rs.getInt("quantity_remaining"),
                         rs.getString("expiration_date"),
-                        rs.getBoolean("prescription_required") ? "YES" : "NO" // Clearer than true/false
+                        rs.getBoolean("prescription_required") ? "YES" : "NO"
                 });
             }
         } catch (SQLException e) {
@@ -151,7 +151,6 @@ public class ItemDAO {
                 itemStmt.setInt(9, item.getReorderLevel());
                 itemStmt.setInt(10, item.isPrescriptionRequired() ? 1 : 0);
 
-                // Line 133 in your error log is likely here
                 itemStmt.executeUpdate();
 
                 ResultSet rs = itemStmt.getGeneratedKeys();
@@ -238,6 +237,7 @@ public class ItemDAO {
     }
 
     // Method 1: Finds the item details based on the barcode scanned in SalesPanel
+    // Here is where the hardware implementation goes
     public Item findItemByBarcode(String barcode) {
         String sql = "SELECT * FROM items WHERE barcode = ?";
         try (Connection conn = dataSource.getConnection();
