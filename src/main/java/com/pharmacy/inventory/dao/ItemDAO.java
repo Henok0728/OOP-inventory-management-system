@@ -16,8 +16,6 @@ public class ItemDAO {
 
     @Autowired
     private DataSource dataSource;
-//    @Autowired
-//    private JdbcTemplate jdbcTemplate;
 
     public DefaultTableModel getAllItems() {
         DefaultTableModel dtm = new DefaultTableModel();
@@ -145,8 +143,6 @@ public class ItemDAO {
                 itemStmt.setDouble(8, item.getRetailPrice());
                 itemStmt.setInt(9, item.getReorderLevel());
                 itemStmt.setInt(10, item.isPrescriptionRequired() ? 1 : 0);
-
-                // Line 133 in your error log is likely here
                 itemStmt.executeUpdate();
 
                 ResultSet rs = itemStmt.getGeneratedKeys();

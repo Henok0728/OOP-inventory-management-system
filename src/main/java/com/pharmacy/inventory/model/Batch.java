@@ -17,6 +17,9 @@ public class Batch {
     public Batch() {
     }
 
+
+
+    
     public Batch(String batchNumber, int itemId, int quantityReceived, int quantityRemaining, String expirationDate, double purchasePrice, double sellingPrice, String status, String receivedDate) {
         this.batchNumber = batchNumber;
         this.itemId = itemId;
@@ -33,6 +36,8 @@ public class Batch {
         this.batchNumber = batchNumber;
         this.itemId = itemId;
         this.quantityReceived = quantity;
+
+
         this.quantityRemaining = quantity;
         this.expirationDate = expirationDate;
         this.purchasePrice = purchasePrice;
@@ -137,3 +142,5 @@ public class Batch {
         this.batchId = batchId;
     }
 }
+
+
