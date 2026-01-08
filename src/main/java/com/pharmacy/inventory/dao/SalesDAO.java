@@ -24,7 +24,9 @@ public class SalesDAO {
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             if (rs.next()) return rs.getDouble(1);
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         return 0.0;
     }
 
@@ -35,7 +37,9 @@ public class SalesDAO {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
+
             if (rs.next()) return rs.getInt(1);
+
         } catch (SQLException e) { e.printStackTrace(); }
         return 0;
     }
@@ -44,12 +48,6 @@ public class SalesDAO {
         DefaultTableModel model = new DefaultTableModel(
                 new String[]{"Time", "Item Name", "Qty", "Total Price"}, 0);
 
-        /**
-         * SCHEMA FIX:
-         * 1. Your schema uses 'sale_date' as a TIMESTAMP (contains both date and time).
-         * 2. We use TIME(s.sale_date) to extract just the clock time for the table.
-         * 3. We join 'sales' -> 'sale_items' -> 'items' to get the product names.
-         */
         String sql = "SELECT TIME(s.sale_date) as time_only, i.name, si.quantity, si.subtotal " +
                 "FROM sales s " +
                 "JOIN sale_items si ON s.sale_id = si.sale_id " +
@@ -66,34 +64,42 @@ public class SalesDAO {
                         rs.getString("time_only"),
                         rs.getString("name"),
                         rs.getInt("quantity"),
-                        "$" + String.format("%.2f", rs.getDouble("subtotal"))
+                        "ETB " + String.format("%.2f", rs.getDouble("subtotal"))
                 });
             }
         } catch (SQLException e) {
             System.err.println("Dashboard Error (Sales Detail): " + e.getMessage());
-            // Returns empty model to keep UI alive
+
         }
         return model;
     }
 
     public boolean processSale(int customerId, int itemId, int batchId, int qty, double price, String method) {
         String insertSale = "INSERT INTO sales (customer_id, total_amount, payment_method) VALUES (?, ?, ?)";
-        String insertItem = "INSERT INTO sale_items (sale_id, item_id, batch_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)";
+        String insertItem = "INSERT INTO sale_items (sale_id, item_id, batch_id, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?, ?)";
         String updateStock = "UPDATE batches SET quantity_remaining = quantity_remaining - ? WHERE batch_id = ?";
 
         try (Connection conn = dataSource.getConnection()) {
-            conn.setAutoCommit(false); // Start Transaction
+            conn.setAutoCommit(false);
 
             try {
                 // 1. Create Sale Header
                 PreparedStatement ps1 = conn.prepareStatement(insertSale, Statement.RETURN_GENERATED_KEYS);
-                ps1.setInt(1, customerId);
+
+                // --- ADDED LOGIC HERE ---
+                if (customerId <= 0) {
+                    ps1.setNull(1, java.sql.Types.INTEGER); // Properly sends NULL to MySQL
+                } else {
+                    ps1.setInt(1, customerId);
+                }
+                // ------------------------
+
                 ps1.setDouble(2, qty * price);
                 ps1.setString(3, method);
                 ps1.executeUpdate();
 
                 ResultSet rs = ps1.getGeneratedKeys();
-                rs.next();
+                if (!rs.next()) throw new SQLException("Generated Key failed");
                 long saleId = rs.getLong(1);
 
                 // 2. Create Sale Item
@@ -103,6 +109,7 @@ public class SalesDAO {
                 ps2.setInt(3, batchId);
                 ps2.setInt(4, qty);
                 ps2.setDouble(5, price);
+                ps2.setDouble(6, qty * price);
                 ps2.executeUpdate();
 
                 // 3. Decrease Inventory
@@ -111,10 +118,10 @@ public class SalesDAO {
                 ps3.setInt(2, batchId);
                 ps3.executeUpdate();
 
-                conn.commit(); // Save everything
+                conn.commit();
                 return true;
             } catch (SQLException e) {
-                conn.rollback(); // Undo everything if there is an error
+                conn.rollback();
                 e.printStackTrace();
                 return false;
             }
@@ -122,5 +129,14 @@ public class SalesDAO {
             e.printStackTrace();
             return false;
         }
+    }
+    public double getTodaysSalesRevenue() {
+        String sql = "SELECT SUM(total_amount) FROM sales WHERE DATE(sale_date) = CURDATE()";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) return rs.getDouble(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0.0;
     }
 }

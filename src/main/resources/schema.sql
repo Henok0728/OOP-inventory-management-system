@@ -137,7 +137,7 @@ create table if not exists sale_items
     primary key,
     quantity     int            not null,
     unit_price   decimal(12, 2) not null,
-    subtotal     decimal(14, 2) not null,
+    subtotal     decimal(14, 2) not null default 0.00,
     batch_id     int            not null,
     item_id      int            not null,
     constraint sale_item_id
