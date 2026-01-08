@@ -14,7 +14,7 @@
     <artifactId>inventory</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>pharmacy-management-system</name>
-    <description>Pharmacy Management System using JDBC</description>
+    <description>Pharmacy Inventory Management System</description>
 
     <properties>
         <java.version>17</java.version>
@@ -59,8 +59,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>7</source>
-                    <target>7</target>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
                 </configuration>
             </plugin>
         </plugins>
