@@ -1,6 +1,5 @@
 package com.pharmacy.inventory.model;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class Sale {
@@ -15,7 +14,7 @@ public class Sale {
     }
 
     public Sale(int saleId, int customerId, double totalAmount,
-                String paymentMethod, double discount, LocalDateTime saleDate) {
+        String paymentMethod, double discount, LocalDateTime saleDate) {
         this.saleId = saleId;
         this.customerId = customerId;
         this.totalAmount = totalAmount;
