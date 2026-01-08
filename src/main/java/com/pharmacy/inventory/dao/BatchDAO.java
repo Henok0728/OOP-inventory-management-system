@@ -104,11 +104,11 @@ public class BatchDAO {
 
             while (rs.next()) {
                 model.addRow(new Object[]{
-                        rs.getLong("batch_id"),
+                        rs.getInt("batch_id"),
                         rs.getString("batch_number"),
                         rs.getInt("quantity_remaining"),
                         rs.getString("expiration_date"),
-                        "$" + String.format("%.2f", rs.getDouble("selling_price")),
+                        "ETB" + String.format("%.2f", rs.getDouble("selling_price")),
                         rs.getString("status")
                 });
             }
@@ -131,6 +131,8 @@ public class BatchDAO {
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
 
+             System.out.println(rs);
+
             while (rs.next()) {
                 model.addRow(new Object[]{
                         rs.getString("name"),
@@ -138,7 +140,9 @@ public class BatchDAO {
                         rs.getInt("quantity_remaining")
                 });
             }
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         return model;
     }
 

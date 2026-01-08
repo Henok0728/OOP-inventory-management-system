@@ -20,6 +20,8 @@ public class Inventory {
     private static JPanel mainContent;
     private static CardLayout cardLayout;
 
+    private HomePanel homePage;
+
     @PostConstruct
     public void init() {
         SwingUtilities.invokeLater(this::prepareGUI);
@@ -35,8 +37,9 @@ public class Inventory {
         mainContent = new JPanel(cardLayout);
 
         // Initialize Specialized Panels
-        HomePanel homePage = new HomePanel(salesDAO, itemDAO, batchDAO);
+        homePage = new HomePanel(salesDAO, itemDAO, batchDAO);
         ProductsPanel productsPage = new ProductsPanel(itemDAO);
+        SalesPanel salesPage = new SalesPanel(salesDAO, itemDAO);
 
         JScrollPane homeScroll = new JScrollPane(homePage);
         homeScroll.setBorder(null);
@@ -47,7 +50,7 @@ public class Inventory {
         mainContent.add(batchDetailView, "BatchDetails");
         mainContent.add(homeScroll, "Home");
         mainContent.add(productsPage, "Products");
-
+        mainContent.add(salesPage, "Sales");
         // UI Components
         frame.add(createHeader(), BorderLayout.NORTH);
         frame.add(createSidebar(), BorderLayout.WEST);
@@ -79,7 +82,15 @@ public class Inventory {
         for (String item : menuItems) {
             JButton btn = new JButton(item);
             btn.setFocusPainted(false);
-            btn.addActionListener(e -> cardLayout.show(mainContent, item));
+            btn.addActionListener(e -> {
+                // Show the page
+                cardLayout.show(mainContent, item);
+
+                // If the button clicked was "Home", refresh the data!
+                if (item.equals("Home")) {
+                    homePage.refreshData();
+                }
+            });
             sidebar.add(btn);
         }
         return sidebar;

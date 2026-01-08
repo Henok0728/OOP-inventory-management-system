@@ -47,7 +47,7 @@ public class ItemDAO {
                 dtm.addRow(row);
             }
         } catch (SQLException e) {
-            System.out.println("Something went wrong!");
+            System.out.println("Something went wrong while, fetching all items!");
         }
         return dtm;
     }
@@ -57,8 +57,9 @@ public class ItemDAO {
                 "dosage_form, strength, retail_price, reorder_level, prescription_required) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
+
         try (Connection conn = dataSource.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             pstmt.setString(1, item.getName());
             pstmt.setString(2, item.getGenericName());
@@ -73,13 +74,15 @@ public class ItemDAO {
 
             pstmt.executeUpdate();
 
-            ResultSet rs = pstmt.getGeneratedKeys();
-            if(rs.next()){
-                return rs.getInt(1);
+            // Now this will work because we requested the keys above
+            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
             }
 
         } catch (SQLException e) {
-            System.out.println("Error inserting item: " + e.getMessage());
+            System.err.println("Error inserting item: " + e.getMessage());
             return -1;
         }
         return -1;
@@ -92,7 +95,7 @@ public class ItemDAO {
                 "LEFT JOIN batches b ON i.item_id = b.item_id " +
                 "WHERE i.name LIKE ? OR i.brand_name LIKE ? OR i.barcode LIKE ?";
 
-        String[] columnNames = {"Product Name", "Brand", "Category", "Price", "Stock", "Expiry", "Rx"};
+        String[] columnNames = {"Item N0","Product Name", "Brand", "Category", "Price", "Stock", "Expiry", "Rx"};
         DefaultTableModel model = new DefaultTableModel(columnNames, 0);
 
         String searchPattern = "%" + query + "%";
@@ -107,12 +110,14 @@ public class ItemDAO {
             ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
                 model.addRow(new Object[]{
+                        rs.getInt("item_id"),
                         rs.getString("name"),
                         rs.getString("brand_name"),
                         rs.getString("category"),
                         rs.getBigDecimal("retail_price"),
+                        rs.getInt("quantity_remaining"),
                         rs.getString("expiration_date"),
-                        rs.getBoolean("prescription_required") ? "YES" : "NO" // Clearer than true/false
+                        rs.getBoolean("prescription_required") ? "YES" : "NO"
                 });
             }
         } catch (SQLException e) {
@@ -146,7 +151,6 @@ public class ItemDAO {
                 itemStmt.setInt(9, item.getReorderLevel());
                 itemStmt.setInt(10, item.isPrescriptionRequired() ? 1 : 0);
 
-                // Line 133 in your error log is likely here
                 itemStmt.executeUpdate();
 
                 ResultSet rs = itemStmt.getGeneratedKeys();
@@ -216,6 +220,45 @@ public class ItemDAO {
             System.out.println("Error deleting an item!");
         }
     }
+
+    public int getAnyAvailableBatch(int itemId) {
+        // This provides the batch_id required by your sale_items schema
+        String sql = "SELECT batch_id FROM batches WHERE item_id = ? AND quantity_remaining > 0 LIMIT 1";
+        try (java.sql.Connection conn = dataSource.getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, itemId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt("batch_id");
+            }
+        } catch (java.sql.SQLException e) {
+            e.printStackTrace();
+        }
+        return -1; // Indicates no stock available
+    }
+
+    // Method 1: Finds the item details based on the barcode scanned in SalesPanel
+    // Here is where the hardware implementation goes
+    public Item findItemByBarcode(String barcode) {
+        String sql = "SELECT * FROM items WHERE barcode = ?";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, barcode);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    Item item = new Item();
+                    item.setItem_id(rs.getInt("item_id"));
+                    item.setName(rs.getString("name"));
+                    item.setRetailPrice(rs.getDouble("retail_price"));
+                    // Add other setters if your Item model requires them
+                    return item;
+                }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return null;
+    }
+
+
 
 
 }

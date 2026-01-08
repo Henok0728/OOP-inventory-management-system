@@ -8,45 +8,71 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 
 public class HomePanel extends JPanel {
+    private final SalesDAO salesDAO;
+    private final ItemDAO itemDAO;
+    private final BatchDAO batchDAO;
 
     public HomePanel(SalesDAO salesDAO, ItemDAO itemDAO, BatchDAO batchDAO) {
-        // Use a vertical BoxLayout to allow "infinite" scrolling down
+        this.salesDAO = salesDAO;
+        this.itemDAO = itemDAO;
+        this.batchDAO = batchDAO;
+
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBackground(new Color(245, 245, 245));
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        initializeUI();
+    }
+
+    private void initializeUI() {
+        // Clear everything first (important for refresh)
+        this.removeAll();
 
         // --- SECTION 1: TOP KPI CARDS ---
         JPanel kpiContainer = new JPanel(new GridLayout(1, 4, 15, 0));
         kpiContainer.setOpaque(false);
         kpiContainer.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
 
-        kpiContainer.add(createKpiCard("Today's Profit", "$" + salesDAO.getTodaysProfit(), new Color(40, 167, 69)));
-        kpiContainer.add(createKpiCard("Today's Sales", salesDAO.getTodaysSalesCount() + " Items", new Color(0, 123, 255)));
-        kpiContainer.add(createKpiCard("Expiring Soon", "Check Alerts", new Color(220, 53, 69)));
-        kpiContainer.add(createKpiCard("Low Stock", "Check Batches", new Color(255, 193, 7)));
+        // Real Profit (ETB)
+        double profit = salesDAO.getTodaysProfit();
+        kpiContainer.add(createKpiCard("Today's Profit", String.format("%.2f ETB", profit), new Color(40, 167, 69)));
+
+        // Real Revenue (ETB)
+        double revenue = salesDAO.getTodaysSalesRevenue();
+        kpiContainer.add(createKpiCard("Today's Revenue", String.format("%.2f ETB", revenue), new Color(0, 123, 255)));
+
+        // Real Expiry Count
+        int expiringCount = batchDAO.getExpiringBatchesModel().getRowCount();
+        kpiContainer.add(createKpiCard("Expiring Soon", expiringCount + " Batches", new Color(220, 53, 69)));
+
+        // Real Low Stock Count
+        int lowStockCount = batchDAO.getLowStockBatchesModel().getRowCount();
+        kpiContainer.add(createKpiCard("Low Stock", lowStockCount + " Items", new Color(255, 193, 7)));
 
         add(kpiContainer);
-        add(Box.createRigidArea(new Dimension(0, 20))); // Spacing
+        add(Box.createRigidArea(new Dimension(0, 20)));
 
         // --- SECTION 2: EXPIRATION ALERTS ---
-        // logic: Fetch items where expiry date is within 30 days
-        add(createSectionPanel("⚠️ Expiration Alerts (Expiring within 30 days)",
+        add(createSectionPanel("⚠️ Expiration Alerts (Within 30 days)",
                 batchDAO.getExpiringBatchesModel()));
 
         add(Box.createRigidArea(new Dimension(0, 20)));
 
-        // --- SECTION 3: LOW STOCK / FINISHING BATCHES ---
-        // logic: Fetch batches where quantity < 10
-        add(createSectionPanel("📦 Reorder Alerts (Low Stock / Finishing Batches)",
+        // --- SECTION 3: REORDER ALERTS ---
+        add(createSectionPanel("📦 Reorder Alerts (Low Stock)",
                 batchDAO.getLowStockBatchesModel()));
 
         add(Box.createRigidArea(new Dimension(0, 20)));
 
-        // --- SECTION 4: TODAY'S SOLD PRODUCTS ---
+        // --- SECTION 4: TODAY'S SALES ACTIVITY ---
         add(createSectionPanel("🛒 Today's Sales Activity",
                 salesDAO.getTodaysSalesDetailsModel()));
 
-        add(Box.createVerticalGlue()); // Pushes everything to the top
+        add(Box.createVerticalGlue());
+
+        // Refresh UI components
+        this.revalidate();
+        this.repaint();
     }
 
     private JPanel createKpiCard(String title, String value, Color accent) {
@@ -75,7 +101,7 @@ public class HomePanel extends JPanel {
     private JPanel createSectionPanel(String title, DefaultTableModel model) {
         JPanel container = new JPanel(new BorderLayout());
         container.setBackground(Color.WHITE);
-        container.setMaximumSize(new Dimension(Integer.MAX_VALUE, 250)); // Fixed height for each table
+        container.setMaximumSize(new Dimension(Integer.MAX_VALUE, 250));
         container.setPreferredSize(new Dimension(0, 250));
 
         TitledBorder border = BorderFactory.createTitledBorder(
@@ -87,11 +113,11 @@ public class HomePanel extends JPanel {
         table.setRowHeight(30);
         table.getTableHeader().setReorderingAllowed(false);
 
-        // Custom Renderer for Null Safety
         table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object v, boolean isS, boolean hasF, int r, int c) {
-                String text = (v == null) ? "" : v.toString();
+                // Ensure currency values in tables also show ETB if they are strings
+                String text = (v == null) ? "" : v.toString().replace("$", "ETB ");
                 return super.getTableCellRendererComponent(t, text, isS, hasF, r, c);
             }
         });
@@ -99,5 +125,9 @@ public class HomePanel extends JPanel {
         JScrollPane scroll = new JScrollPane(table);
         container.add(scroll, BorderLayout.CENTER);
         return container;
+    }
+
+    public void refreshData() {
+        initializeUI();
     }
 }
