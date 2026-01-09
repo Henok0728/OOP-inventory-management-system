@@ -17,16 +17,10 @@ public class ProductsPanel extends JPanel {
     private DefaultTableModel tableModel;
     private Integer selectedItemId = null;
 
-    // Form Fields
+    // Core Item Fields Only
     private final JTextField nameF = new JTextField(), genericF = new JTextField(), brandF = new JTextField();
     private final JTextField barcodeF = new JTextField(), dosageF = new JTextField(), strengthF = new JTextField();
     private final JTextField priceF = new JTextField(), searchF = new JTextField(), reorderF = new JTextField();
-
-    // Batch Fields (Used only for Initial Entry)
-    private final JTextField batchNoF = new JTextField();
-    private final JTextField qtyF = new JTextField();
-    private final JTextField purchasePriceF = new JTextField();
-    private final JTextField expiryDateF = new JTextField("YYYY-MM-DD");
 
     private final JComboBox<String> categoryCombo = new JComboBox<>(new String[]{
             "antibiotics", "painkiller", "vaccine", "medical supply", "non medical supply", "equipment"
@@ -58,7 +52,7 @@ public class ProductsPanel extends JPanel {
     private JPanel createEntryForm() {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setPreferredSize(new Dimension(350, 0));
-        panel.setBorder(new TitledBorder("Item Management"));
+        panel.setBorder(new TitledBorder("Item Information"));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 10, 5, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -71,28 +65,22 @@ public class ProductsPanel extends JPanel {
         addFormRow(panel, "Category:", categoryCombo, gbc, row++);
         addFormRow(panel, "Dosage:", dosageF, gbc, row++);
         addFormRow(panel, "Strength:", strengthF, gbc, row++);
-        addFormRow(panel, "Price:", priceF, gbc, row++);
+        addFormRow(panel, "Retail Price (ETB):", priceF, gbc, row++);
         addFormRow(panel, "Reorder Level:", reorderF, gbc, row++);
-
-        addFormRow(panel, "Initial Batch #:", batchNoF, gbc, row++);
-        addFormRow(panel, "Initial Qty:", qtyF, gbc, row++);
-        addFormRow(panel, "Purchase Price:", purchasePriceF, gbc, row++);
-        addFormRow(panel, "Expiry Date:", expiryDateF, gbc, row++);
 
         gbc.gridx = 1; gbc.gridy = row++;
         panel.add(prescriptionCheck, gbc);
 
         // CRUD Buttons
         JPanel btnPanel = new JPanel(new GridLayout(3, 2, 5, 5));
-        JButton addBtn = new JButton("Add New");
-        JButton updateBtn = new JButton("Update");
-        JButton deleteBtn = new JButton("Delete");
-        JButton clearBtn = new JButton("Clear");
-        JButton viewBatchesBtn = new JButton("View Batches");
+        JButton addBtn = new JButton("Register Item");
+        JButton updateBtn = new JButton("Update Item");
+        JButton deleteBtn = new JButton("Remove Item");
+        JButton clearBtn = new JButton("Clear Form");
+        JButton viewBatchesBtn = new JButton("View Inventory");
 
         viewBatchesBtn.setBackground(new Color(52, 152, 219));
         viewBatchesBtn.setForeground(Color.WHITE);
-        viewBatchesBtn.setFont(new Font("SansSerif", Font.BOLD, 12));
 
         btnPanel.add(addBtn); btnPanel.add(updateBtn);
         btnPanel.add(deleteBtn); btnPanel.add(clearBtn);
@@ -111,7 +99,7 @@ public class ProductsPanel extends JPanel {
             if (selectedItemId != null) {
                 Inventory.showBatchPanel(selectedItemId, nameF.getText());
             } else {
-                JOptionPane.showMessageDialog(this, "Please select a product from the table first.");
+                JOptionPane.showMessageDialog(this, "Select a product to view stock history.");
             }
         });
 
@@ -123,6 +111,38 @@ public class ProductsPanel extends JPanel {
         p.add(new JLabel(label), gbc);
         gbc.gridx = 1;
         p.add(comp, gbc);
+    }
+
+    private void saveAction(boolean isNew) {
+        try {
+            Item item = new Item();
+            item.setName(nameF.getText());
+            item.setGenericName(genericF.getText());
+            item.setBrandName(brandF.getText());
+            item.setBarcode(barcodeF.getText());
+            item.setCategory((String) categoryCombo.getSelectedItem());
+            item.setDosageForm(dosageF.getText());
+            item.setStrength(strengthF.getText());
+            item.setRetailPrice(Double.parseDouble(priceF.getText()));
+            item.setReorderLevel(Integer.parseInt(reorderF.getText()));
+            item.setPrescriptionRequired(prescriptionCheck.isSelected());
+
+            if (isNew) {
+                itemDAO.addItem(item); // Simple insert
+                JOptionPane.showMessageDialog(this, "New item registered in catalog!");
+            } else if (selectedItemId != null) {
+                item.setItem_id(selectedItemId);
+                itemDAO.updateItem(item);
+                JOptionPane.showMessageDialog(this, "Item specifications updated!");
+            }
+
+            loadTableData();
+            clearFields();
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Retail Price and Reorder Level must be numeric.");
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+        }
     }
 
     public void loadTableData() {
@@ -161,48 +181,9 @@ public class ProductsPanel extends JPanel {
         return o == null ? "" : o.toString();
     }
 
-    private void saveAction(boolean isNew) {
-        try {
-            Item item = new Item();
-            item.setName(nameF.getText());
-            item.setGenericName(genericF.getText());
-            item.setBrandName(brandF.getText());
-            item.setBarcode(barcodeF.getText());
-            item.setCategory((String) categoryCombo.getSelectedItem());
-            item.setDosageForm(dosageF.getText());
-            item.setStrength(strengthF.getText());
-            item.setRetailPrice(Double.parseDouble(priceF.getText()));
-            item.setReorderLevel(Integer.parseInt(reorderF.getText()));
-            item.setPrescriptionRequired(prescriptionCheck.isSelected());
-
-            if (isNew) {
-                String bNum = batchNoF.getText();
-                int qty = Integer.parseInt(qtyF.getText());
-                double pPrice = Double.parseDouble(purchasePriceF.getText());
-                String expiry = expiryDateF.getText();
-
-                itemDAO.insertItemWithBatch(item, bNum, qty, pPrice, expiry);
-                JOptionPane.showMessageDialog(this, "Product and Initial Batch added successfully!");
-            } else {
-                if (selectedItemId != null) {
-                    item.setItem_id(selectedItemId);
-                    itemDAO.updateItem(item);
-                    JOptionPane.showMessageDialog(this, "Item details updated!");
-                }
-            }
-
-            loadTableData();
-            clearFields();
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Check your numbers! Qty, Price, and Reorder must be numeric.");
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
-        }
-    }
-
     private void deleteAction() {
         if (selectedItemId == null) return;
-        int confirm = JOptionPane.showConfirmDialog(this, "Delete this item and all associated batches?", "Confirm", JOptionPane.YES_NO_OPTION);
+        int confirm = JOptionPane.showConfirmDialog(this, "Delete this item?", "Confirm", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             itemDAO.removeItem(selectedItemId);
             loadTableData();
@@ -211,13 +192,11 @@ public class ProductsPanel extends JPanel {
     }
 
     private void clearFields() {
-        JTextField[] fields = {nameF, genericF, brandF, barcodeF, dosageF, strengthF, priceF, reorderF, batchNoF, qtyF, purchasePriceF};
+        JTextField[] fields = {nameF, genericF, brandF, barcodeF, dosageF, strengthF, priceF, reorderF};
         for (JTextField field : fields) {
             field.setText("");
-            field.setEnabled(true);
         }
-        categoryCombo.setEnabled(true);
-        expiryDateF.setText("YYYY-MM-DD");
+        categoryCombo.setSelectedIndex(0);
         prescriptionCheck.setSelected(false);
         selectedItemId = null;
         table.clearSelection();
@@ -229,6 +208,7 @@ public class ProductsPanel extends JPanel {
             public void removeUpdate(DocumentEvent e) { filter(); }
             public void changedUpdate(DocumentEvent e) { filter(); }
             private void filter() {
+                if (tableModel == null) return;
                 TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(tableModel);
                 table.setRowSorter(sorter);
                 sorter.setRowFilter(RowFilter.regexFilter("(?i)" + searchF.getText()));
