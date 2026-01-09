@@ -25,6 +25,7 @@ public class Inventory {
     private SupplierPanel supplierPage;
     private StockEntryPanel stockPage;
     private CustomerPanel customerPage;
+    private SalesHistoryPanel historyPage;
 
     @PostConstruct
     public void init() {
@@ -47,6 +48,7 @@ public class Inventory {
         supplierPage = new SupplierPanel(supplierDAO);
         stockPage = new StockEntryPanel(batchDAO, itemDAO, supplierDAO);
         customerPage = new CustomerPanel(customerDAO);
+        historyPage = new SalesHistoryPanel(salesDAO);
 
 
         JScrollPane homeScroll = new JScrollPane(homePage);
@@ -62,6 +64,8 @@ public class Inventory {
         mainContent.add(supplierPage, "Suppliers");
         mainContent.add(stockPage, "Stock");
         mainContent.add(customerPage, "Customers");
+        mainContent.add(historyPage, "History");
+
         // UI Components
         frame.add(createHeader(), BorderLayout.NORTH);
         frame.add(createSidebar(), BorderLayout.WEST);
@@ -89,7 +93,7 @@ public class Inventory {
         sidebar.setPreferredSize(new Dimension(200, 0));
         sidebar.setBackground(new Color(45, 52, 54));
 
-        String[] menuItems = {"Home", "Products", "Sales", "Suppliers","Stock","Customers"};
+        String[] menuItems = {"Home", "Products", "Sales", "Suppliers","Stock","Customers", "History"};
         for (String item : menuItems) {
             JButton btn = new JButton(item);
             btn.setFocusPainted(false);
@@ -109,6 +113,9 @@ public class Inventory {
                 }
                 if (item.equals("Customers")) {
                     customerPage.loadData();
+                }
+                if (item.equals("History")) {
+                    historyPage.refreshData();
                 }
             });
             sidebar.add(btn);

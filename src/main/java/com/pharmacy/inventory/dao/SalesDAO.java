@@ -148,4 +148,65 @@ public class SalesDAO {
         } catch (SQLException e) { e.printStackTrace(); }
         return model;
     }
+
+    public DefaultTableModel getSalesHistory() {
+        String[] columns = {"Sale ID", "Date", "Customer", "Total (ETB)", "Payment", "Discount"};
+        DefaultTableModel model = new DefaultTableModel(columns, 0);
+
+        // We use LEFT JOIN so Walk-in sales (ID 0) still show up
+        String sql = "SELECT s.sale_id, s.sale_date, " +
+                "COALESCE(CONCAT(c.first_name, ' ', c.last_name), 'Walk-in') as customer_name, " +
+                "s.total_amount, s.payment_method, s.discount " +
+                "FROM sales s " +
+                "LEFT JOIN customers c ON s.customer_id = c.customer_id " +
+                "ORDER BY s.sale_date DESC";
+
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                model.addRow(new Object[]{
+                        rs.getInt("sale_id"),
+                        rs.getTimestamp("sale_date"),
+                        rs.getString("customer_name"),
+                        rs.getDouble("total_amount"),
+                        rs.getString("payment_method"),
+                        rs.getDouble("discount")
+                });
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return model;
+    }
+
+    /**
+     * Fetches specific items for a single sale when a row is clicked
+     */
+    public DefaultTableModel getSaleItems(int saleId) {
+        String[] columns = {"Item Name", "Quantity", "Unit Price", "Subtotal"};
+        DefaultTableModel model = new DefaultTableModel(columns, 0);
+
+        String sql = "SELECT i.name, si.quantity, si.unit_price, si.subtotal " +
+                "FROM sale_items si " +
+                "JOIN items i ON si.item_id = i.item_id " +
+                "WHERE si.sale_id = ?";
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, saleId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                model.addRow(new Object[]{
+                        rs.getString("name"),
+                        rs.getInt("quantity"),
+                        rs.getDouble("unit_price"),
+                        rs.getDouble("subtotal")
+                });
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return model;
+    }
+
 }
