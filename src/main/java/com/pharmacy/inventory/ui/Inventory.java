@@ -1,9 +1,6 @@
 package com.pharmacy.inventory.ui;
 
-import com.pharmacy.inventory.dao.ItemDAO;
-import com.pharmacy.inventory.dao.BatchDAO;
-import com.pharmacy.inventory.dao.SalesDAO;
-import com.pharmacy.inventory.dao.SupplierDAO;
+import com.pharmacy.inventory.dao.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
@@ -16,6 +13,8 @@ public class Inventory {
     @Autowired private BatchDAO batchDAO;
     @Autowired private SalesDAO salesDAO;
     @Autowired private SupplierDAO supplierDAO;
+    @Autowired private CustomerDAO customerDAO;
+
     private static BatchDetailsPanel batchDetailView;
 
     private JFrame frame;
@@ -43,7 +42,7 @@ public class Inventory {
         // Initialize Specialized Panels
         homePage = new HomePanel(salesDAO, itemDAO, batchDAO);
         ProductsPanel productsPage = new ProductsPanel(itemDAO);
-        SalesPanel salesPage = new SalesPanel(salesDAO, itemDAO);
+        SalesPanel salesPage = new SalesPanel(salesDAO, itemDAO, customerDAO);
         supplierPage = new SupplierPanel(supplierDAO);
         stockPage = new StockEntryPanel(batchDAO, itemDAO, supplierDAO);
 

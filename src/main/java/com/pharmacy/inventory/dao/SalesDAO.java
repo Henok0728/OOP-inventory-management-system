@@ -12,9 +12,93 @@ public class SalesDAO {
     @Autowired
     private DataSource dataSource;
 
-    // Fixed: Now joins sale_items to get quantity and price
+    /**
+     * The Main Transaction Engine:
+     * Saves the Sale Header, all Sale Items, and updates Batch Stock levels.
+     */
+    public boolean executeSale(Long customerId, DefaultTableModel cart, String paymentMethod, double totalAmount) {
+        String insertSale = "INSERT INTO sales (customer_id, total_amount, payment_method, sale_date) VALUES (?, ?, ?, NOW())";
+        String insertItem = "INSERT INTO sale_items (sale_id, item_id, batch_id, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?, ?)";
+        String updateStock = "UPDATE batches SET quantity_remaining = quantity_remaining - ? WHERE batch_id = ? AND quantity_remaining >= ?";
+
+        Connection conn = null;
+        try {
+            conn = dataSource.getConnection();
+            conn.setAutoCommit(false); // Enable ACID transaction
+
+            long saleId = -1;
+            // 1. Create Sale Header
+            try (PreparedStatement ps1 = conn.prepareStatement(insertSale, Statement.RETURN_GENERATED_KEYS)) {
+                if (customerId == null || customerId <= 0) {
+                    ps1.setNull(1, Types.BIGINT);
+                } else {
+                    ps1.setLong(1, customerId);
+                }
+                ps1.setDouble(2, totalAmount);
+                ps1.setString(3, paymentMethod);
+                ps1.executeUpdate();
+
+                ResultSet rs = ps1.getGeneratedKeys();
+                if (rs.next()) saleId = rs.getLong(1);
+            }
+
+            if (saleId == -1) throw new SQLException("Failed to create sale header.");
+
+            // 2. Process Cart and Stock
+            try (PreparedStatement psItem = conn.prepareStatement(insertItem);
+                 PreparedStatement psStock = conn.prepareStatement(updateStock)) {
+
+                for (int i = 0; i < cart.getRowCount(); i++) {
+                    int itemId = (int) cart.getValueAt(i, 0);
+                    int batchId = (int) cart.getValueAt(i, 2);
+                    int qty = Integer.parseInt(cart.getValueAt(i, 3).toString());
+                    double unitPrice = (double) cart.getValueAt(i, 4);
+                    double subtotal = (double) cart.getValueAt(i, 5);
+
+                    // Add to Sale Items batch
+                    psItem.setLong(1, saleId);
+                    psItem.setInt(2, itemId);
+                    psItem.setInt(3, batchId);
+                    psItem.setInt(4, qty);
+                    psItem.setDouble(5, unitPrice);
+                    psItem.setDouble(6, subtotal);
+                    psItem.addBatch();
+
+                    // Add to Stock Reduction batch
+                    psStock.setInt(1, qty);
+                    psStock.setInt(2, batchId);
+                    psStock.setInt(3, qty); // Check constraint: must have enough stock
+                    psStock.addBatch();
+                }
+
+                psItem.executeBatch();
+                int[] stockResults = psStock.executeBatch();
+
+                // Verify all stock updates succeeded
+                for (int res : stockResults) {
+                    if (res == 0) throw new SQLException("Insufficient stock in one of the batches.");
+                }
+            }
+
+            conn.commit(); // Finalize transaction
+            return true;
+
+        } catch (SQLException e) {
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+            }
+            e.printStackTrace();
+            return false;
+        } finally {
+            if (conn != null) {
+                try { conn.close(); } catch (SQLException e) { e.printStackTrace(); }
+            }
+        }
+    }
+
+    // --- DASHBOARD METHODS (Used by HomePanel) ---
+
     public double getTodaysProfit() {
-        // Math: (Selling Price - Purchase Price) * Quantity
         String sql = "SELECT SUM((si.unit_price - b.purchase_price) * si.quantity) " +
                 "FROM sale_items si " +
                 "JOIN sales s ON si.sale_id = s.sale_id " +
@@ -24,24 +108,18 @@ public class SalesDAO {
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             if (rs.next()) return rs.getDouble(1);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        } catch (SQLException e) { e.printStackTrace(); }
         return 0.0;
     }
 
-    public int getTodaysSalesCount() {
-        String sql = "SELECT SUM(quantity) FROM sale_items si " +
-                "JOIN sales s ON si.sale_id = s.sale_id " +
-                "WHERE DATE(s.sale_date) = CURDATE()";
+    public double getTodaysSalesRevenue() {
+        String sql = "SELECT SUM(total_amount) FROM sales WHERE DATE(sale_date) = CURDATE()";
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
-
-            if (rs.next()) return rs.getInt(1);
-
+            if (rs.next()) return rs.getDouble(1);
         } catch (SQLException e) { e.printStackTrace(); }
-        return 0;
+        return 0.0;
     }
 
     public DefaultTableModel getTodaysSalesDetailsModel() {
@@ -67,76 +145,7 @@ public class SalesDAO {
                         "ETB " + String.format("%.2f", rs.getDouble("subtotal"))
                 });
             }
-        } catch (SQLException e) {
-            System.err.println("Dashboard Error (Sales Detail): " + e.getMessage());
-
-        }
-        return model;
-    }
-
-    public boolean processSale(int customerId, int itemId, int batchId, int qty, double price, String method) {
-        String insertSale = "INSERT INTO sales (customer_id, total_amount, payment_method) VALUES (?, ?, ?)";
-        String insertItem = "INSERT INTO sale_items (sale_id, item_id, batch_id, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?, ?)";
-        String updateStock = "UPDATE batches SET quantity_remaining = quantity_remaining - ? WHERE batch_id = ?";
-
-        try (Connection conn = dataSource.getConnection()) {
-            conn.setAutoCommit(false);
-
-            try {
-                // 1. Create Sale Header
-                PreparedStatement ps1 = conn.prepareStatement(insertSale, Statement.RETURN_GENERATED_KEYS);
-
-                // --- ADDED LOGIC HERE ---
-                if (customerId <= 0) {
-                    ps1.setNull(1, java.sql.Types.INTEGER); // Properly sends NULL to MySQL
-                } else {
-                    ps1.setInt(1, customerId);
-                }
-                // ------------------------
-
-                ps1.setDouble(2, qty * price);
-                ps1.setString(3, method);
-                ps1.executeUpdate();
-
-                ResultSet rs = ps1.getGeneratedKeys();
-                if (!rs.next()) throw new SQLException("Generated Key failed");
-                long saleId = rs.getLong(1);
-
-                // 2. Create Sale Item
-                PreparedStatement ps2 = conn.prepareStatement(insertItem);
-                ps2.setLong(1, saleId);
-                ps2.setInt(2, itemId);
-                ps2.setInt(3, batchId);
-                ps2.setInt(4, qty);
-                ps2.setDouble(5, price);
-                ps2.setDouble(6, qty * price);
-                ps2.executeUpdate();
-
-                // 3. Decrease Inventory
-                PreparedStatement ps3 = conn.prepareStatement(updateStock);
-                ps3.setInt(1, qty);
-                ps3.setInt(2, batchId);
-                ps3.executeUpdate();
-
-                conn.commit();
-                return true;
-            } catch (SQLException e) {
-                conn.rollback();
-                e.printStackTrace();
-                return false;
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-    public double getTodaysSalesRevenue() {
-        String sql = "SELECT SUM(total_amount) FROM sales WHERE DATE(sale_date) = CURDATE()";
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            if (rs.next()) return rs.getDouble(1);
         } catch (SQLException e) { e.printStackTrace(); }
-        return 0.0;
+        return model;
     }
 }
