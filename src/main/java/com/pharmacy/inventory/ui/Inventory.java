@@ -24,6 +24,7 @@ public class Inventory {
 
     private HomePanel homePage;
     private SupplierPanel supplierPage;
+    private StockEntryPanel stockPage;
 
     @PostConstruct
     public void init() {
@@ -44,6 +45,8 @@ public class Inventory {
         ProductsPanel productsPage = new ProductsPanel(itemDAO);
         SalesPanel salesPage = new SalesPanel(salesDAO, itemDAO);
         supplierPage = new SupplierPanel(supplierDAO);
+        stockPage = new StockEntryPanel(batchDAO, itemDAO, supplierDAO);
+
 
         JScrollPane homeScroll = new JScrollPane(homePage);
         homeScroll.setBorder(null);
@@ -56,6 +59,7 @@ public class Inventory {
         mainContent.add(productsPage, "Products");
         mainContent.add(salesPage, "Sales");
         mainContent.add(supplierPage, "Suppliers");
+        mainContent.add(stockPage, "Stock");
         // UI Components
         frame.add(createHeader(), BorderLayout.NORTH);
         frame.add(createSidebar(), BorderLayout.WEST);
@@ -97,6 +101,9 @@ public class Inventory {
                 }
                 if (item.equals("Suppliers")) {
                     supplierPage.refreshData();
+                }
+                if (item.equals("Stock")) {
+                    stockPage.refreshData();
                 }
             });
             sidebar.add(btn);

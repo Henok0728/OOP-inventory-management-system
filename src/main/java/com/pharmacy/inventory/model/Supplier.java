@@ -87,4 +87,9 @@ public class Supplier {
     public void setPaymentTerms(String paymentTerms) {
         this.paymentTerms = paymentTerms;
     }
+
+    @Override
+    public String toString() {
+        return (name != null) ? name : "Unknown Supplier";
+    }
 }
