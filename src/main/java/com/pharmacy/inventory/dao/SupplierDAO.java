@@ -126,4 +126,32 @@ public class SupplierDAO {
                 rs.getString("payment_terms")
         );
     }
+
+    // 1. Get total count for the first KPI card
+    public int getTotalSuppliersCount() {
+        String sql = "SELECT COUNT(*) FROM suppliers";
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    // 2. Get active count (Since we don't have a status column,
+// we will count suppliers who have provided at least one batch)
+    public int getActiveSuppliersCount() {
+        String sql = "SELECT COUNT(DISTINCT supplied_id) FROM item_suppliers";
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    // 3. This matches the method name your friend used in the UI
+    public DefaultTableModel getAllSuppliersModel() {
+        return getSupplierTableModel(getAllSuppliers());
+    }
 }

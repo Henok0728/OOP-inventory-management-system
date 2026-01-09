@@ -3,6 +3,7 @@ package com.pharmacy.inventory.ui;
 import com.pharmacy.inventory.dao.ItemDAO;
 import com.pharmacy.inventory.dao.BatchDAO;
 import com.pharmacy.inventory.dao.SalesDAO;
+import com.pharmacy.inventory.dao.SupplierDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
@@ -14,6 +15,7 @@ public class Inventory {
     @Autowired private ItemDAO itemDAO;
     @Autowired private BatchDAO batchDAO;
     @Autowired private SalesDAO salesDAO;
+    @Autowired private SupplierDAO supplierDAO;
     private static BatchDetailsPanel batchDetailView;
 
     private JFrame frame;
@@ -21,6 +23,7 @@ public class Inventory {
     private static CardLayout cardLayout;
 
     private HomePanel homePage;
+    private SupplierPanel supplierPage;
 
     @PostConstruct
     public void init() {
@@ -40,6 +43,7 @@ public class Inventory {
         homePage = new HomePanel(salesDAO, itemDAO, batchDAO);
         ProductsPanel productsPage = new ProductsPanel(itemDAO);
         SalesPanel salesPage = new SalesPanel(salesDAO, itemDAO);
+        supplierPage = new SupplierPanel(supplierDAO);
 
         JScrollPane homeScroll = new JScrollPane(homePage);
         homeScroll.setBorder(null);
@@ -51,6 +55,7 @@ public class Inventory {
         mainContent.add(homeScroll, "Home");
         mainContent.add(productsPage, "Products");
         mainContent.add(salesPage, "Sales");
+        mainContent.add(supplierPage, "Suppliers");
         // UI Components
         frame.add(createHeader(), BorderLayout.NORTH);
         frame.add(createSidebar(), BorderLayout.WEST);
@@ -78,7 +83,7 @@ public class Inventory {
         sidebar.setPreferredSize(new Dimension(200, 0));
         sidebar.setBackground(new Color(45, 52, 54));
 
-        String[] menuItems = {"Home", "Products", "Sales", "Stock"};
+        String[] menuItems = {"Home", "Products", "Sales", "Suppliers","Stock"};
         for (String item : menuItems) {
             JButton btn = new JButton(item);
             btn.setFocusPainted(false);
@@ -89,6 +94,9 @@ public class Inventory {
                 // If the button clicked was "Home", refresh the data!
                 if (item.equals("Home")) {
                     homePage.refreshData();
+                }
+                if (item.equals("Suppliers")) {
+                    supplierPage.refreshData();
                 }
             });
             sidebar.add(btn);
