@@ -150,13 +150,15 @@ public class SalesDAO {
     }
 
     public DefaultTableModel getSalesHistory() {
-        String[] columns = {"Sale ID", "Date", "Customer", "Total (ETB)", "Payment", "Discount"};
+        String[] columns = {"Sale ID", "Date", "Customer", "Total (ETB)", "Payment Status", "Discount"};
         DefaultTableModel model = new DefaultTableModel(columns, 0);
 
-        // We use LEFT JOIN so Walk-in sales (ID 0) still show up
+        // We use the alias 'payment_status' to handle the VOIDED label
         String sql = "SELECT s.sale_id, s.sale_date, " +
                 "COALESCE(CONCAT(c.first_name, ' ', c.last_name), 'Walk-in') as customer_name, " +
-                "s.total_amount, s.payment_method, s.discount " +
+                "s.total_amount, " +
+                "CASE WHEN s.total_amount = 0 THEN 'VOIDED' ELSE s.payment_method END as payment_status, " +
+                "s.discount " +
                 "FROM sales s " +
                 "LEFT JOIN customers c ON s.customer_id = c.customer_id " +
                 "ORDER BY s.sale_date DESC";
@@ -171,7 +173,8 @@ public class SalesDAO {
                         rs.getTimestamp("sale_date"),
                         rs.getString("customer_name"),
                         rs.getDouble("total_amount"),
-                        rs.getString("payment_method"),
+                        // VITAL FIX: Use the alias 'payment_status' here instead of 'payment_method'
+                        rs.getString("payment_status"),
                         rs.getDouble("discount")
                 });
             }
@@ -181,9 +184,6 @@ public class SalesDAO {
         return model;
     }
 
-    /**
-     * Fetches specific items for a single sale when a row is clicked
-     */
     public DefaultTableModel getSaleItems(int saleId) {
         String[] columns = {"Item Name", "Quantity", "Unit Price", "Subtotal"};
         DefaultTableModel model = new DefaultTableModel(columns, 0);
@@ -209,4 +209,46 @@ public class SalesDAO {
         return model;
     }
 
+    public boolean voidSale(int saleId) {
+        String getItemsSql = "SELECT item_id, batch_id, quantity FROM sale_items WHERE sale_id = ?";
+        String updateBatchSql = "UPDATE batches SET quantity_remaining = quantity_remaining + ? WHERE batch_id = ?";
+        // We remove the payment_method update to avoid violating the CHECK constraint
+        String updateSaleSql = "UPDATE sales SET total_amount = 0, discount = 0 WHERE sale_id = ?";
+
+        Connection conn = null;
+        try {
+            conn = dataSource.getConnection();
+            conn.setAutoCommit(false);
+
+            // 1. Restock Batches
+            try (PreparedStatement psGet = conn.prepareStatement(getItemsSql)) {
+                psGet.setInt(1, saleId);
+                ResultSet rs = psGet.executeQuery();
+
+                try (PreparedStatement psBatch = conn.prepareStatement(updateBatchSql)) {
+                    while (rs.next()) {
+                        psBatch.setInt(1, rs.getInt("quantity"));
+                        psBatch.setInt(2, rs.getInt("batch_id"));
+                        psBatch.addBatch();
+                    }
+                    psBatch.executeBatch();
+                }
+            }
+
+            // 2. Zero out the sale amount
+            try (PreparedStatement psSale = conn.prepareStatement(updateSaleSql)) {
+                psSale.setInt(1, saleId);
+                psSale.executeUpdate();
+            }
+
+            conn.commit();
+            return true;
+        } catch (SQLException e) {
+            if (conn != null) try { conn.rollback(); } catch (SQLException ex) {}
+            e.printStackTrace();
+            return false;
+        } finally {
+            if (conn != null) try { conn.setAutoCommit(true); conn.close(); } catch (SQLException e) {}
+        }
+    }
 }
