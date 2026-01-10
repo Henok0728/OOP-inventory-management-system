@@ -1,11 +1,30 @@
 package com.pharmacy.inventory.ui;
 
-import com.pharmacy.inventory.dao.*;
+import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.GridLayout;
+
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.SwingUtilities;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import com.pharmacy.inventory.dao.BatchDAO;
+import com.pharmacy.inventory.dao.CustomerDAO;
+import com.pharmacy.inventory.dao.ItemDAO;
+import com.pharmacy.inventory.dao.SalesDAO;
+import com.pharmacy.inventory.dao.SupplierDAO;
+
 import jakarta.annotation.PostConstruct;
-import javax.swing.*;
-import java.awt.*;
+
 
 @Component
 public class Inventory {
@@ -26,6 +45,7 @@ public class Inventory {
     private StockEntryPanel stockPage;
     private CustomerPanel customerPage;
     private SalesHistoryPanel historyPage;
+    private BatchPanel batchPage;
 
     @PostConstruct
     public void init() {
@@ -49,7 +69,7 @@ public class Inventory {
         stockPage = new StockEntryPanel(batchDAO, itemDAO, supplierDAO);
         customerPage = new CustomerPanel(customerDAO);
         historyPage = new SalesHistoryPanel(salesDAO);
-
+        batchPage = new BatchPanel(batchDAO,supplierDAO,itemDAO);
 
         JScrollPane homeScroll = new JScrollPane(homePage);
         homeScroll.setBorder(null);
@@ -62,9 +82,11 @@ public class Inventory {
         mainContent.add(productsPage, "Products");
         mainContent.add(salesPage, "Sales");
         mainContent.add(supplierPage, "Suppliers");
+        mainContent.add(batchPage,"Batches");
         mainContent.add(stockPage, "Stock");
         mainContent.add(customerPage, "Customers");
         mainContent.add(historyPage, "History");
+        
 
         // UI Components
         frame.add(createHeader(), BorderLayout.NORTH);
@@ -93,7 +115,7 @@ public class Inventory {
         sidebar.setPreferredSize(new Dimension(200, 0));
         sidebar.setBackground(new Color(45, 52, 54));
 
-        String[] menuItems = {"Home", "Products", "Sales", "Suppliers","Stock","Customers", "History"};
+        String[] menuItems = {"Home", "Products", "Sales", "Suppliers","Batches","Stock","Customers", "History"};
         for (String item : menuItems) {
             JButton btn = new JButton(item);
             btn.setFocusPainted(false);
@@ -110,6 +132,9 @@ public class Inventory {
                 }
                 if (item.equals("Stock")) {
                     stockPage.refreshData();
+                }
+                if (item.equals("Batches")){
+                    batchPage.refreshData();
                 }
                 if (item.equals("Customers")) {
                     customerPage.loadData();
