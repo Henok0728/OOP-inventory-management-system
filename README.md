@@ -1,4 +1,4 @@
-Inventory Management System (Java Swing)
+Pharmacetual Inventory Management System (Java Swing)
 📌 Overview
 
 This project is a simple Inventory Management System built using Java for backend logic and Swing for the graphical user interface (GUI).
@@ -19,4 +19,9 @@ Java (JDK 8 or higher)
 
 Java Swing – GUI
 
-OOP Principles – Encapsulation,Abstraction, Compostition and , Separation of Concerns
+Java Springboot - Backend
+
+Mysql - Database
+
+OOP Principles – Encapsulation,Abstraction,Inheritance, Compostition and Polymorphism.
+
