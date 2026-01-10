@@ -1,0 +1,1 @@
+Addition of the the embedded system along side the project for pharmaceutal inventory management system
