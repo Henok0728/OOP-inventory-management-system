@@ -3,7 +3,9 @@ package com.pharmacy.inventory.ui;
 import com.pharmacy.inventory.dao.CustomerDAO;
 import com.pharmacy.inventory.dao.ItemDAO;
 import com.pharmacy.inventory.dao.SalesDAO;
+import com.pharmacy.inventory.dao.AuditDAO; // Added AuditDAO
 import com.pharmacy.inventory.model.Customer;
+import com.pharmacy.inventory.util.UserSession;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
@@ -16,6 +18,7 @@ public class SalesPanel extends JPanel {
     private final SalesDAO salesDAO;
     private final ItemDAO itemDAO;
     private final CustomerDAO customerDAO;
+    private final AuditDAO auditDAO; // Added AuditDAO
 
     private JTable cartTable;
     private DefaultTableModel cartModel;
@@ -26,10 +29,12 @@ public class SalesPanel extends JPanel {
 
     private double grandTotal = 0.0;
 
-    public SalesPanel(SalesDAO salesDAO, ItemDAO itemDAO, CustomerDAO customerDAO) {
+    // Updated Constructor
+    public SalesPanel(SalesDAO salesDAO, ItemDAO itemDAO, CustomerDAO customerDAO, AuditDAO auditDAO) {
         this.salesDAO = salesDAO;
         this.itemDAO = itemDAO;
         this.customerDAO = customerDAO;
+        this.auditDAO = auditDAO;
 
         setLayout(new BorderLayout(10, 10));
         setBackground(new Color(240, 242, 245));
@@ -133,8 +138,13 @@ public class SalesPanel extends JPanel {
 
         String method = (String) paymentMethodCombo.getSelectedItem();
 
+        // 1. Execute DB logic
         if (salesDAO.executeSale(custId, cartModel, method, grandTotal)) {
-            // Success! Print Receipt
+
+            // 2. LOG THE ACTION (Integration with Audit Log)
+            auditDAO.log("SALE_COMPLETED", "sales", null);
+
+            // 3. Success! Print Receipt
             printReceipt(custName, cartModel, grandTotal, method);
 
             JOptionPane.showMessageDialog(this, "Sale Recorded Successfully!");
@@ -146,12 +156,15 @@ public class SalesPanel extends JPanel {
         }
     }
 
+    // ... printReceipt, loadCustomers, showQuickAddCustomerDialog, processSearch remain the same ...
+
     private void printReceipt(String custName, DefaultTableModel cart, double total, String method) {
         StringBuilder sb = new StringBuilder();
         sb.append("        PHARMACY MS        \n");
         sb.append("---------------------------\n");
         sb.append("Date: ").append(new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm").format(new java.util.Date())).append("\n");
         sb.append("Customer: ").append(custName).append("\n");
+        sb.append("Cashier: ").append(UserSession.getCurrentUser().getName()).append("\n"); // Personalized
         sb.append("Payment: ").append(method).append("\n");
         sb.append("---------------------------\n");
         sb.append(String.format("%-15s %3s %8s\n", "Item", "Qty", "Price"));
@@ -170,12 +183,10 @@ public class SalesPanel extends JPanel {
         sb.append("   Keep your receipt.   \n");
         sb.append("   Thank you!   \n");
 
-        // Send to Printer
         JTextArea textArea = new JTextArea(sb.toString());
         textArea.setFont(new Font("Monospaced", Font.PLAIN, 8));
         try {
             boolean done = textArea.print();
-            if (done) System.out.println("Receipt Printed Successfully");
         } catch (Exception e) {
             System.err.println("Print Error: " + e.getMessage());
         }
@@ -199,7 +210,11 @@ public class SalesPanel extends JPanel {
             c.setFirstName(fName.getText().trim());
             c.setLastName(lName.getText().trim());
             c.setMedicalRecordNumber(mrn.getText().trim());
-            if (customerDAO.saveCustomer(c)) { loadCustomers(); customerCombo.setSelectedItem(c); }
+            if (customerDAO.saveCustomer(c)) {
+                auditDAO.log("QUICK_CUSTOMER_ADD", "customers", null);
+                loadCustomers();
+                customerCombo.setSelectedItem(c);
+            }
         }
     }
 
@@ -250,11 +265,6 @@ public class SalesPanel extends JPanel {
         JTable t = new JTable(res);
         if (JOptionPane.showConfirmDialog(this, new JScrollPane(t), "Select Item", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION && t.getSelectedRow() != -1)
             addResultToCart(res, t.getSelectedRow());
-    }
-
-    private void removeSelectedItem() {
-        int r = cartTable.getSelectedRow();
-        if (r != -1) { cartModel.removeRow(r); calculateTotal(); }
     }
 
     private void setupTableAppearance() {

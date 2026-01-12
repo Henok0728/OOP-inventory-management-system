@@ -9,6 +9,7 @@ import javax.swing.table.DefaultTableModel;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Vector;
 
 @Repository
 public class BatchDAO {
@@ -127,5 +128,44 @@ public class BatchDAO {
             }
         } catch (SQLException e) { e.printStackTrace(); }
         return model;
+    }
+
+    public DefaultTableModel getBatchesByItem(int itemId) {
+        Vector<String> columns = new Vector<>();
+        columns.add("Batch ID");
+        columns.add("Batch Number");
+        columns.add("Qty Remaining");
+        columns.add("Cost Price");
+        columns.add("Expiry Date");
+        columns.add("Supplier");
+
+        Vector<Vector<Object>> data = new Vector<>();
+        // SQL to join batches with suppliers to show the name instead of just ID
+        String sql = "SELECT b.batch_id, b.batch_number, b.quantity_remaining, b.cost_price, b.expiration_date, s.name " +
+                "FROM batches b " +
+                "LEFT JOIN suppliers s ON b.supplier_id = s.supplier_id " +
+                "WHERE b.item_id = ? AND b.quantity_remaining > 0 " +
+                "ORDER BY b.expiration_date ASC";
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, itemId);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                Vector<Object> row = new Vector<>();
+                row.add(rs.getInt("batch_id"));
+                row.add(rs.getString("batch_number"));
+                row.add(rs.getInt("quantity_remaining"));
+                row.add(rs.getDouble("cost_price"));
+                row.add(rs.getDate("expiration_date"));
+                row.add(rs.getString("name"));
+                data.add(row);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return new DefaultTableModel(data, columns);
     }
 }

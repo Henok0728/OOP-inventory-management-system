@@ -2,38 +2,39 @@ package com.pharmacy.inventory.ui;
 
 import com.pharmacy.inventory.dao.BatchDAO;
 import javax.swing.*;
-import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 
 public class BatchDetailsPanel extends JPanel {
-    private JTable batchTable;
-    private JLabel headerLabel;
-    private BatchDAO batchDAO;
+    private final BatchDAO batchDAO;
+    private JTable table;
+    private JLabel titleLabel;
 
     public BatchDetailsPanel(BatchDAO batchDAO) {
         this.batchDAO = batchDAO;
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        headerLabel = new JLabel("Batches for: Select an Item");
-        headerLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
-        add(headerLabel, BorderLayout.NORTH);
-
-        batchTable = new JTable();
-        add(new JScrollPane(batchTable), BorderLayout.CENTER);
+        // Header with Back Button
+        JPanel header = new JPanel(new BorderLayout());
+        titleLabel = new JLabel("Batch Details");
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
 
         JButton backBtn = new JButton("← Back to Products");
+        // This is the line causing your error - it needs Inventory.showPage()
         backBtn.addActionListener(e -> Inventory.showPage("Products"));
-        add(backBtn, BorderLayout.SOUTH);
+
+        header.add(titleLabel, BorderLayout.WEST);
+        header.add(backBtn, BorderLayout.EAST);
+
+        table = new JTable();
+        add(header, BorderLayout.NORTH);
+        add(new JScrollPane(table), BorderLayout.CENTER);
     }
 
-    // Inside BatchDetailsPanel.java
     public void loadBatches(int itemId, String itemName) {
-        headerLabel.setText("Inventory Batches for: " + itemName);
-
-        // Use the new Model method here
-        DefaultTableModel model = batchDAO.getBatchesByItemIdModel(itemId);
-        batchTable.setModel(model);
+        titleLabel.setText("Batches for: " + itemName);
+        DefaultTableModel model = batchDAO.getBatchesByItem(itemId);
+        table.setModel(model);
     }
 }

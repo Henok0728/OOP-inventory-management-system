@@ -1,7 +1,9 @@
 package com.pharmacy.inventory.ui;
 
 import com.pharmacy.inventory.dao.ItemDAO;
+import com.pharmacy.inventory.dao.AuditDAO; // Ensure this is imported
 import com.pharmacy.inventory.model.Item;
+import com.pharmacy.inventory.util.UserSession;
 import javax.swing.*;
 import javax.swing.event.*;
 import javax.swing.border.TitledBorder;
@@ -13,11 +15,13 @@ import java.awt.*;
 public class ProductsPanel extends JPanel {
 
     private final ItemDAO itemDAO;
+    private final AuditDAO auditDAO; // Added AuditDAO
+
     private JTable table;
     private DefaultTableModel tableModel;
     private Integer selectedItemId = null;
 
-    // Core Item Fields Only
+    // Core Item Fields
     private final JTextField nameF = new JTextField(), genericF = new JTextField(), brandF = new JTextField();
     private final JTextField barcodeF = new JTextField(), dosageF = new JTextField(), strengthF = new JTextField();
     private final JTextField priceF = new JTextField(), searchF = new JTextField(), reorderF = new JTextField();
@@ -27,8 +31,10 @@ public class ProductsPanel extends JPanel {
     });
     private final JCheckBox prescriptionCheck = new JCheckBox("Prescription Required");
 
-    public ProductsPanel(ItemDAO itemDAO) {
+    // Updated Constructor to include AuditDAO
+    public ProductsPanel(ItemDAO itemDAO, AuditDAO auditDAO) {
         this.itemDAO = itemDAO;
+        this.auditDAO = auditDAO;
         setLayout(new BorderLayout(10, 10));
 
         // --- SEARCH BAR (NORTH) ---
@@ -57,6 +63,10 @@ public class ProductsPanel extends JPanel {
         gbc.insets = new Insets(5, 10, 5, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
+        // Determine permissions
+        String role = UserSession.getUserRole();
+        boolean isAdmin = role.equals("admin") || role.equals("manager");
+
         int row = 0;
         addFormRow(panel, "Name:", nameF, gbc, row++);
         addFormRow(panel, "Generic:", genericF, gbc, row++);
@@ -78,6 +88,21 @@ public class ProductsPanel extends JPanel {
         JButton deleteBtn = new JButton("Remove Item");
         JButton clearBtn = new JButton("Clear Form");
         JButton viewBatchesBtn = new JButton("View Inventory");
+
+        // Apply Security Restrictions
+        addBtn.setEnabled(isAdmin);
+        updateBtn.setEnabled(isAdmin);
+        deleteBtn.setEnabled(isAdmin);
+
+        // Disable fields if not admin to prevent confusion
+        if (!isAdmin) {
+            String msg = "Locked: View Only Access";
+            nameF.setEditable(false); genericF.setEditable(false);
+            priceF.setEditable(false); barcodeF.setEditable(false);
+            addBtn.setToolTipText(msg);
+            updateBtn.setToolTipText(msg);
+            deleteBtn.setToolTipText(msg);
+        }
 
         viewBatchesBtn.setBackground(new Color(52, 152, 219));
         viewBatchesBtn.setForeground(Color.WHITE);
@@ -114,6 +139,11 @@ public class ProductsPanel extends JPanel {
     }
 
     private void saveAction(boolean isNew) {
+        if (!UserSession.getUserRole().equals("admin") && !UserSession.getUserRole().equals("manager")) {
+            JOptionPane.showMessageDialog(this, "Unauthorized: Only administrators can modify items.");
+            return;
+        }
+
         try {
             Item item = new Item();
             item.setName(nameF.getText());
@@ -128,11 +158,13 @@ public class ProductsPanel extends JPanel {
             item.setPrescriptionRequired(prescriptionCheck.isSelected());
 
             if (isNew) {
-                itemDAO.addItem(item); // Simple insert
+                itemDAO.addItem(item);
+                auditDAO.log("REGISTER_NEW_ITEM", "items", null); // Logging the creation
                 JOptionPane.showMessageDialog(this, "New item registered in catalog!");
             } else if (selectedItemId != null) {
                 item.setItem_id(selectedItemId);
                 itemDAO.updateItem(item);
+                auditDAO.log("UPDATE_ITEM_SPECS", "items", selectedItemId); // Logging the update
                 JOptionPane.showMessageDialog(this, "Item specifications updated!");
             }
 
@@ -182,10 +214,15 @@ public class ProductsPanel extends JPanel {
     }
 
     private void deleteAction() {
+        if (!UserSession.getUserRole().equals("admin")) {
+            JOptionPane.showMessageDialog(this, "Unauthorized: Only administrators can delete items.");
+            return;
+        }
         if (selectedItemId == null) return;
         int confirm = JOptionPane.showConfirmDialog(this, "Delete this item?", "Confirm", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             itemDAO.removeItem(selectedItemId);
+            auditDAO.log("DELETE_ITEM", "items", selectedItemId); // Logging the deletion
             loadTableData();
             clearFields();
         }
