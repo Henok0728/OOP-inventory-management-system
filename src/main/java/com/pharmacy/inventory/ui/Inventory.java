@@ -2,7 +2,7 @@ package com.pharmacy.inventory.ui;
 
 import com.pharmacy.inventory.dao.*;
 import com.pharmacy.inventory.util.UserSession;
-import com.pharmacy.inventory.util.NotificationManager; // Import the utility we created
+import com.pharmacy.inventory.ui.NotificationManager; // Import the utility we created
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
@@ -18,7 +18,7 @@ public class Inventory {
     @Autowired private CustomerDAO customerDAO;
     @Autowired private UserDAO userDAO;
     @Autowired private AuditDAO auditDAO;
-    @Autowired private WasteDAO wasteDAO; // <-- FIX: Add this line to solve the "cannot find symbol" error
+    @Autowired private WasteDAO wasteDAO;
 
     private static BatchDetailsPanel batchDetailView;
     private JFrame frame;
@@ -32,7 +32,7 @@ public class Inventory {
     private SalesHistoryPanel historyPage;
     private BatchPanel batchPage;
     private AuditLogPanel auditPage;
-    private WastePanel wastePage; // Add reference for the Waste UI
+    private WastePanel wastePage;
 
     @PostConstruct
     public void init() {
@@ -63,7 +63,7 @@ public class Inventory {
         historyPage = new SalesHistoryPanel(salesDAO);
         batchPage = new BatchPanel(batchDAO, supplierDAO, itemDAO);
         auditPage = new AuditLogPanel(auditDAO);
-        wastePage = new WastePanel(wasteDAO); // Initialize the Waste Panel
+        wastePage = new WastePanel(wasteDAO);
 
         JScrollPane homeScroll = new JScrollPane(homePage);
         homeScroll.setBorder(null);
@@ -82,7 +82,7 @@ public class Inventory {
         mainContent.add(customerPage, "Customers");
         mainContent.add(historyPage, "History");
         mainContent.add(auditPage, "Audit");
-        mainContent.add(wastePage, "Waste"); // Register Waste Page
+        mainContent.add(wastePage, "Waste");
 
         frame.add(createHeader(), BorderLayout.NORTH);
         frame.add(createSidebar(), BorderLayout.WEST);
@@ -138,7 +138,7 @@ public class Inventory {
             addSidebarButton(sidebar, "Batches");
             addSidebarButton(sidebar, "Stock");
             addSidebarButton(sidebar, "Suppliers");
-            addSidebarButton(sidebar, "Waste"); // Added Waste button for inventory controllers
+            addSidebarButton(sidebar, "Waste");
         }
 
         if (role.equals("admin") || role.equals("manager")) {
@@ -171,6 +171,7 @@ public class Inventory {
         container.add(btn);
     }
 
+
     private void refreshPanelData(String item) {
         if (item.equals("Home")) homePage.refreshData();
         if (item.equals("Suppliers")) supplierPage.refreshData();
@@ -187,7 +188,6 @@ public class Inventory {
         cardLayout.show(mainContent, "BatchDetails");
     }
 
-    // Add this to Inventory.java
     public static void showPage(String pageName) {
         if (cardLayout != null && mainContent != null) {
             cardLayout.show(mainContent, pageName);
