@@ -5,9 +5,15 @@ import com.pharmacy.inventory.util.UserSession;
 import com.pharmacy.inventory.ui.NotificationManager; // Import the utility we created
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import com.pharmacy.inventory.dao.BatchDAO;
+import com.pharmacy.inventory.dao.CustomerDAO;
+import com.pharmacy.inventory.dao.ItemDAO;
+import com.pharmacy.inventory.dao.SalesDAO;
+import com.pharmacy.inventory.dao.SupplierDAO;
+
 import jakarta.annotation.PostConstruct;
-import javax.swing.*;
-import java.awt.*;
+
 
 @Component
 public class Inventory {
