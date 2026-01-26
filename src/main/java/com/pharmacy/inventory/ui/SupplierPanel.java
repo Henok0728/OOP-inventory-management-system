@@ -84,7 +84,6 @@ public class SupplierPanel extends JPanel {
     }
 
     private void showAddSupplierDialog() {
-        // Create a simple popup form
         JTextField name = new JTextField();
         JTextField contact = new JTextField();
         JTextField phone = new JTextField();
@@ -109,7 +108,7 @@ public class SupplierPanel extends JPanel {
         }
     }
 
-    // UPDATED: Now stores a reference to the table so search can update it
+
     private JPanel createSectionPanel(String title, DefaultTableModel model) {
         JPanel container = new JPanel(new BorderLayout());
         container.setBackground(Color.WHITE);

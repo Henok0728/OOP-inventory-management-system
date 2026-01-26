@@ -20,7 +20,7 @@ public class NotificationManager {
                 for (Map<String, Object> item : expired) {
                     // Extracting values from the map returned by getExpiredBatches
                     int batchId = (int) item.get("id");
-                    int itemId = (int) item.get("item_id"); // Ensure your WasteDAO.getExpiredBatches puts this in the map
+                    int itemId = (int) item.get("item_id");
                     int qty = (int) item.get("qty");
 
                     if (qty > 0) {

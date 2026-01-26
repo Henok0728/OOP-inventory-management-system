@@ -81,10 +81,6 @@ public class CustomerPanel extends JPanel {
         loadData(); // Initial load
     }
 
-    /**
-     * Changed to PUBLIC so Inventory.java can trigger a refresh when
-     * the user switches to this tab.
-     */
     public void loadData() {
         tableModel.setRowCount(0);
         List<Customer> customers = customerDAO.getAllCustomers();
@@ -103,9 +99,7 @@ public class CustomerPanel extends JPanel {
         }
     }
 
-    /**
-     * Alias for loadData to match naming conventions in other panels
-     */
+
     public void refreshData() {
         loadData();
     }

@@ -117,7 +117,7 @@ public class SalesHistoryPanel extends JPanel {
 
     public void refreshData() {
         masterTable.setModel(salesDAO.getSalesHistory());
-        setupMasterTableAppearance(); // Re-apply colors after model change
+        setupMasterTableAppearance();
         detailModel.setRowCount(0);
     }
 
@@ -126,13 +126,13 @@ public class SalesHistoryPanel extends JPanel {
     }
 
     private void setupMasterTableAppearance() {
-        // Highlighting logic for VOIDED rows
+
         masterTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object v, boolean isS, boolean hasF, int r, int c) {
                 Component comp = super.getTableCellRendererComponent(t, v, isS, hasF, r, c);
 
-                // Column 4 is "Payment Method" in our DAO SQL
+
                 String method = t.getValueAt(r, 4).toString();
 
                 if ("VOIDED".equalsIgnoreCase(method)) {

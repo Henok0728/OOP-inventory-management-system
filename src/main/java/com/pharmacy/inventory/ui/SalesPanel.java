@@ -1,24 +1,23 @@
 package com.pharmacy.inventory.ui;
 
-import com.pharmacy.inventory.dao.CustomerDAO;
-import com.pharmacy.inventory.dao.ItemDAO;
-import com.pharmacy.inventory.dao.SalesDAO;
-import com.pharmacy.inventory.dao.AuditDAO; // Added AuditDAO
+import com.pharmacy.inventory.dao.*;
 import com.pharmacy.inventory.model.Customer;
 import com.pharmacy.inventory.util.UserSession;
 
 import javax.swing.*;
-import javax.swing.border.TitledBorder;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
+import javax.swing.border.*;
+import javax.swing.event.TableModelEvent;
+import javax.swing.table.*;
 import java.awt.*;
 import java.util.List;
+import java.util.Date;
+import java.text.SimpleDateFormat;
 
 public class SalesPanel extends JPanel {
     private final SalesDAO salesDAO;
     private final ItemDAO itemDAO;
     private final CustomerDAO customerDAO;
-    private final AuditDAO auditDAO; // Added AuditDAO
+    private final AuditDAO auditDAO;
 
     private JTable cartTable;
     private DefaultTableModel cartModel;
@@ -27,195 +26,309 @@ public class SalesPanel extends JPanel {
     private JComboBox<String> paymentMethodCombo = new JComboBox<>(new String[]{"cash", "card", "insurance"});
     private JComboBox<Customer> customerCombo = new JComboBox<>();
 
+    // UI Constants
+    private final Color PRIMARY_COLOR = new Color(41, 128, 185);
+    private final Color SUCCESS_COLOR = new Color(39, 174, 96);
+    private final Color DANGER_COLOR = new Color(192, 57, 43);
+    private final Color BG_COLOR = new Color(236, 240, 241);
+
     private double grandTotal = 0.0;
 
-    // Updated Constructor
     public SalesPanel(SalesDAO salesDAO, ItemDAO itemDAO, CustomerDAO customerDAO, AuditDAO auditDAO) {
         this.salesDAO = salesDAO;
         this.itemDAO = itemDAO;
         this.customerDAO = customerDAO;
         this.auditDAO = auditDAO;
 
-        setLayout(new BorderLayout(10, 10));
-        setBackground(new Color(240, 242, 245));
-        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        initLayout();
+        loadCustomers();
+    }
 
-        // --- NORTH: SEARCH & CUSTOMER ---
-        JPanel topPanel = new JPanel(new GridLayout(1, 2, 10, 0));
-        topPanel.setOpaque(false);
+    private void initLayout() {
+        setLayout(new BorderLayout(15, 15));
+        setBackground(BG_COLOR);
+        setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        JPanel searchBox = new JPanel(new BorderLayout(5, 5));
-        searchBox.setBorder(new TitledBorder("1. Product Search"));
-        barcodeSearchF.setFont(new Font("SansSerif", Font.BOLD, 18));
+        add(createHeaderPanel(), BorderLayout.NORTH);
+        add(createCartPanel(), BorderLayout.CENTER);
+        add(createCheckoutSidePanel(), BorderLayout.EAST);
+    }
+
+    private JPanel createHeaderPanel() {
+        JPanel header = new JPanel(new GridLayout(1, 2, 20, 0));
+        header.setOpaque(false);
+
+        // Search Section
+        JPanel searchBox = new JPanel(new BorderLayout(10, 10));
+        searchBox.setBackground(Color.WHITE);
+        searchBox.setBorder(new TitledBorder(new LineBorder(PRIMARY_COLOR), " 1. Scan or Search Product "));
+
+        barcodeSearchF.setFont(new Font("SansSerif", Font.PLAIN, 18));
+        barcodeSearchF.setBorder(BorderFactory.createCompoundBorder(
+                new LineBorder(Color.LIGHT_GRAY), BorderFactory.createEmptyBorder(5, 10, 5, 10)));
+        barcodeSearchF.addActionListener(e -> processSearch());
         searchBox.add(barcodeSearchF, BorderLayout.CENTER);
 
-        JPanel customerBox = new JPanel(new BorderLayout(5, 5));
-        customerBox.setBorder(new TitledBorder("2. Patient (Optional)"));
-        customerCombo.setPreferredSize(new Dimension(150, 30));
+        // Customer Section
+        JPanel customerBox = new JPanel(new BorderLayout(10, 10));
+        customerBox.setBackground(Color.WHITE);
+        customerBox.setBorder(new TitledBorder(new LineBorder(PRIMARY_COLOR), " 2. Patient / Customer "));
+
+        customerCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
         customerBox.add(customerCombo, BorderLayout.CENTER);
 
-        JPanel custButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 2, 0));
-        custButtons.setOpaque(false);
-        JButton addCustBtn = new JButton("+");
-        JButton refreshCustBtn = new JButton("↻");
-        custButtons.add(addCustBtn);
-        custButtons.add(refreshCustBtn);
-        customerBox.add(custButtons, BorderLayout.EAST);
+        JPanel custActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+        custActions.setOpaque(false);
+        JButton addCustBtn = createStyledButton("+ New", PRIMARY_COLOR);
+        JButton refreshBtn = createStyledButton("↻", Color.GRAY);
 
-        topPanel.add(searchBox);
-        topPanel.add(customerBox);
+        addCustBtn.addActionListener(e -> showQuickAddCustomerDialog());
+        refreshBtn.addActionListener(e -> loadCustomers());
 
-        // --- CENTER: CART TABLE ---
-        String[] cols = {"Item ID", "Product Name", "Batch ID", "Qty", "Unit Price", "Subtotal"};
+        custActions.add(addCustBtn);
+        custActions.add(refreshBtn);
+        customerBox.add(custActions, BorderLayout.EAST);
+
+        header.add(searchBox);
+        header.add(customerBox);
+        return header;
+    }
+
+    private JPanel createCartPanel() {
+        JPanel centerPanel = new JPanel(new BorderLayout(0, 10));
+        centerPanel.setOpaque(false);
+
+        String[] cols = {"Item ID", "Product Name", "Qty", "Unit Price", "Subtotal", "Max Stock"};
         cartModel = new DefaultTableModel(cols, 0) {
             @Override
-            public boolean isCellEditable(int row, int column) { return column == 3; }
+            public boolean isCellEditable(int r, int c) { return c == 2; } // Only Qty can be edited
         };
+
         cartTable = new JTable(cartModel);
-        cartTable.setRowHeight(35);
+        cartTable.setRowHeight(40);
+        cartTable.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        cartTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 13));
+        cartTable.setSelectionBackground(new Color(232, 244, 253));
         setupTableAppearance();
 
-        // --- EAST: CHECKOUT PANEL ---
-        JPanel checkoutPanel = new JPanel();
-        checkoutPanel.setLayout(new BoxLayout(checkoutPanel, BoxLayout.Y_AXIS));
-        checkoutPanel.setPreferredSize(new Dimension(300, 0));
-        checkoutPanel.setBorder(new TitledBorder("3. Checkout"));
-        checkoutPanel.setBackground(Color.WHITE);
+        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        toolbar.setOpaque(false);
 
-        totalLabel.setFont(new Font("Monospaced", Font.BOLD, 32));
-        totalLabel.setForeground(new Color(46, 204, 113));
-        totalLabel.setOpaque(true);
-        totalLabel.setBackground(Color.BLACK);
-        totalLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        totalLabel.setMaximumSize(new Dimension(280, 80));
+        JButton btnDeleteSelected = createStyledButton("Remove Selected", DANGER_COLOR);
+        JButton btnClearAll = createStyledButton("Clear All", Color.DARK_GRAY);
 
-        paymentMethodCombo.setMaximumSize(new Dimension(280, 40));
+        btnDeleteSelected.addActionListener(e -> removeSelectedItems());
+        btnClearAll.addActionListener(e -> clearWholeCart());
 
-        JButton checkoutBtn = new JButton("CONFIRM SALE");
-        checkoutBtn.setBackground(new Color(52, 152, 219));
-        checkoutBtn.setForeground(Color.WHITE);
-        checkoutBtn.setFont(new Font("SansSerif", Font.BOLD, 18));
-        checkoutBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
-        checkoutBtn.setMaximumSize(new Dimension(280, 60));
+        toolbar.add(btnDeleteSelected);
+        toolbar.add(btnClearAll);
 
-        checkoutPanel.add(Box.createVerticalStrut(10));
-        checkoutPanel.add(new JLabel("GRAND TOTAL:"));
-        checkoutPanel.add(totalLabel);
-        checkoutPanel.add(Box.createVerticalStrut(20));
-        checkoutPanel.add(new JLabel("Payment Method:"));
-        checkoutPanel.add(paymentMethodCombo);
-        checkoutPanel.add(Box.createVerticalGlue());
-        checkoutPanel.add(checkoutBtn);
-
-        add(topPanel, BorderLayout.NORTH);
-        add(new JScrollPane(cartTable), BorderLayout.CENTER);
-        add(checkoutPanel, BorderLayout.EAST);
-
-        // --- LISTENERS ---
-        barcodeSearchF.addActionListener(e -> processSearch());
-        addCustBtn.addActionListener(e -> showQuickAddCustomerDialog());
-        refreshCustBtn.addActionListener(e -> loadCustomers());
-        checkoutBtn.addActionListener(e -> performCheckout());
+        centerPanel.add(toolbar, BorderLayout.NORTH);
+        centerPanel.add(new JScrollPane(cartTable), BorderLayout.CENTER);
 
         cartModel.addTableModelListener(e -> {
-            if (e.getType() == javax.swing.event.TableModelEvent.UPDATE && e.getColumn() == 3) {
+            if (e.getType() == TableModelEvent.UPDATE && e.getColumn() == 2) {
                 updateRowSubtotal(e.getFirstRow());
             }
         });
 
-        loadCustomers();
+        return centerPanel;
+    }
+
+    private JPanel createCheckoutSidePanel() {
+        JPanel side = new JPanel(new GridBagLayout());
+        side.setBackground(Color.WHITE);
+        side.setPreferredSize(new Dimension(320, 0));
+        side.setBorder(BorderFactory.createCompoundBorder(
+                new LineBorder(Color.LIGHT_GRAY), BorderFactory.createEmptyBorder(25, 20, 25, 20)));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+
+
+        JLabel title = new JLabel("CHECKOUT SUMMARY");
+        title.setFont(new Font("SansSerif", Font.BOLD, 18));
+        title.setHorizontalAlignment(SwingConstants.CENTER);
+        gbc.gridy = 0; gbc.insets = new Insets(0, 0, 40, 0);
+        side.add(title, gbc);
+
+
+        JLabel totalHeader = new JLabel("TOTAL");
+        totalHeader.setFont(new Font("SansSerif", Font.BOLD, 14));
+        totalHeader.setHorizontalAlignment(SwingConstants.CENTER);
+        gbc.gridy = 1; gbc.insets = new Insets(0, 0, 10, 0);
+        side.add(totalHeader, gbc);
+
+
+        totalLabel.setFont(new Font("Monospaced", Font.BOLD, 36));
+        totalLabel.setForeground(SUCCESS_COLOR);
+        totalLabel.setBackground(new Color(33, 33, 33));
+        totalLabel.setOpaque(true);
+        totalLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        totalLabel.setPreferredSize(new Dimension(280, 100));
+        totalLabel.setMinimumSize(new Dimension(280, 100));
+        gbc.gridy = 2; gbc.insets = new Insets(0, 0, 40, 0);
+        side.add(totalLabel, gbc);
+
+        // Payment mode header
+        JLabel payHeader = new JLabel("PAYMENT MODE");
+        payHeader.setFont(new Font("SansSerif", Font.BOLD, 14));
+        payHeader.setHorizontalAlignment(SwingConstants.CENTER);
+        gbc.gridy = 3; gbc.insets = new Insets(0, 0, 10, 0);
+        side.add(payHeader, gbc);
+
+        paymentMethodCombo.setFont(new Font("SansSerif", Font.BOLD, 16));
+        paymentMethodCombo.setPreferredSize(new Dimension(280, 45));
+        gbc.gridy = 4; gbc.insets = new Insets(0, 0, 40, 0);
+        side.add(paymentMethodCombo, gbc);
+
+        // Spacer to push button down
+        gbc.gridy = 5; gbc.weighty = 1.0;
+        side.add(Box.createVerticalGlue(), gbc);
+
+        // Checkout button
+        JButton checkoutBtn = new JButton("CONFIRM SALE");
+        checkoutBtn.setBackground(SUCCESS_COLOR);
+        checkoutBtn.setForeground(Color.WHITE);
+        checkoutBtn.setFont(new Font("SansSerif", Font.BOLD, 22));
+        checkoutBtn.setPreferredSize(new Dimension(280, 80));
+        checkoutBtn.addActionListener(e -> performCheckout()); // Button Listener
+        gbc.gridy = 6; gbc.weighty = 0; gbc.insets = new Insets(20, 0, 0, 0);
+        side.add(checkoutBtn, gbc);
+
+        return side;
     }
 
     private void performCheckout() {
         if (cartModel.getRowCount() == 0) return;
 
         Customer selected = (Customer) customerCombo.getSelectedItem();
-        Long custId = (selected != null) ? selected.getCustomerId() : 0L;
-        String custName = (selected != null) ? selected.toString() : "Walk-in";
+        String paymentMethod = (String) paymentMethodCombo.getSelectedItem();
 
-        int confirm = JOptionPane.showConfirmDialog(this, "Process sale for " + custName + "?", "Checkout", JOptionPane.YES_NO_OPTION);
+        int confirm = JOptionPane.showConfirmDialog(this, "Process sale for " + selected + "?", "Confirm", JOptionPane.YES_NO_OPTION);
         if (confirm != JOptionPane.YES_OPTION) return;
 
-        String method = (String) paymentMethodCombo.getSelectedItem();
-
-        // 1. Execute DB logic
-        if (salesDAO.executeSale(custId, cartModel, method, grandTotal)) {
-
-            // 2. LOG THE ACTION (Integration with Audit Log)
+        if (salesDAO.executeSale(selected.getCustomerId(), cartModel, paymentMethod, grandTotal)) {
             auditDAO.log("SALE_COMPLETED", "sales", null);
 
-            // 3. Success! Print Receipt
-            printReceipt(custName, cartModel, grandTotal, method);
+            printReceipt(selected.toString(), cartModel, grandTotal, paymentMethod);
 
-            JOptionPane.showMessageDialog(this, "Sale Recorded Successfully!");
+            JOptionPane.showMessageDialog(this, "Sale Completed Successfully!");
             cartModel.setRowCount(0);
             calculateTotal();
-            customerCombo.setSelectedIndex(0);
         } else {
-            JOptionPane.showMessageDialog(this, "Error: Check stock levels.");
+            JOptionPane.showMessageDialog(this, "Transaction failed: Check stock availability.");
         }
     }
 
-    // ... printReceipt, loadCustomers, showQuickAddCustomerDialog, processSearch remain the same ...
-
     private void printReceipt(String custName, DefaultTableModel cart, double total, String method) {
         StringBuilder sb = new StringBuilder();
-        sb.append("        PHARMACY MS        \n");
-        sb.append("---------------------------\n");
-        sb.append("Date: ").append(new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm").format(new java.util.Date())).append("\n");
-        sb.append("Customer: ").append(custName).append("\n");
-        sb.append("Cashier: ").append(UserSession.getCurrentUser().getName()).append("\n"); // Personalized
-        sb.append("Payment: ").append(method).append("\n");
-        sb.append("---------------------------\n");
-        sb.append(String.format("%-15s %3s %8s\n", "Item", "Qty", "Price"));
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+        String dateStr = sdf.format(new Date());
+
+        sb.append("      CITY CENTER PHARMACY      \n");
+        sb.append("    123 Health St, Addis Ababa  \n");
+        sb.append("================================\n");
+        sb.append(String.format("DATE:    %s\n", dateStr));
+        sb.append(String.format("PATIENT: %s\n", custName));
+        sb.append(String.format("CASHIER: %s\n", UserSession.getCurrentUser().getName()));
+        sb.append(String.format("PAYMENT: %s\n", method.toUpperCase()));
+        sb.append("--------------------------------\n");
+        sb.append(String.format("%-14s %5s %11s\n", "ITEM", "QTY", "PRICE"));
+        sb.append("--------------------------------\n");
 
         for (int i = 0; i < cart.getRowCount(); i++) {
             String name = cart.getValueAt(i, 1).toString();
             if (name.length() > 14) name = name.substring(0, 12) + "..";
-            int qty = Integer.parseInt(cart.getValueAt(i, 3).toString());
-            double sub = (double) cart.getValueAt(i, 5);
-            sb.append(String.format("%-15s %3d %8.2f\n", name, qty, sub));
+            int qty = Integer.parseInt(cart.getValueAt(i, 2).toString());
+            double sub = (double) cart.getValueAt(i, 4);
+            sb.append(String.format("%-14s %5d %11.2f\n", name, qty, sub));
         }
 
-        sb.append("---------------------------\n");
-        sb.append(String.format("TOTAL:          ETB %.2f\n", total));
-        sb.append("---------------------------\n");
-        sb.append("   Keep your receipt.   \n");
-        sb.append("   Thank you!   \n");
+        sb.append("--------------------------------\n");
+        sb.append(String.format("TOTAL:           ETB %11.2f\n", total));
+        sb.append("================================\n");
+        sb.append("   Thank you for choosing us!   \n");
+        sb.append("      Get Well Soon!            \n");
+        sb.append("\n\n\n\n");
 
         JTextArea textArea = new JTextArea(sb.toString());
-        textArea.setFont(new Font("Monospaced", Font.PLAIN, 8));
+        textArea.setFont(new Font("Monospaced", Font.PLAIN, 9));
         try {
-            boolean done = textArea.print();
+            textArea.print();
         } catch (Exception e) {
             System.err.println("Print Error: " + e.getMessage());
         }
     }
 
-    private void loadCustomers() {
-        customerCombo.removeAllItems();
-        Customer walkIn = new Customer(); walkIn.setCustomerId(0L); walkIn.setFirstName("Walk-in Customer");
-        customerCombo.addItem(walkIn);
-        List<Customer> list = customerDAO.getAllCustomers();
-        for (Customer c : list) customerCombo.addItem(c);
-        customerCombo.setSelectedIndex(0);
+    private void removeSelectedItems() {
+        int[] selectedRows = cartTable.getSelectedRows();
+        for (int i = selectedRows.length - 1; i >= 0; i--) {
+            cartModel.removeRow(selectedRows[i]);
+        }
+        calculateTotal();
     }
 
-    private void showQuickAddCustomerDialog() {
-        JTextField fName = new JTextField(); JTextField lName = new JTextField(); JTextField mrn = new JTextField();
-        Object[] msg = {"First Name:", fName, "Last Name:", lName, "MRN:", mrn};
-        int opt = JOptionPane.showConfirmDialog(this, msg, "Quick Register", JOptionPane.OK_CANCEL_OPTION);
-        if (opt == JOptionPane.OK_OPTION && !fName.getText().trim().isEmpty()) {
-            Customer c = new Customer();
-            c.setFirstName(fName.getText().trim());
-            c.setLastName(lName.getText().trim());
-            c.setMedicalRecordNumber(mrn.getText().trim());
-            if (customerDAO.saveCustomer(c)) {
-                auditDAO.log("QUICK_CUSTOMER_ADD", "customers", null);
-                loadCustomers();
-                customerCombo.setSelectedItem(c);
-            }
+    private void clearWholeCart() {
+        if (cartModel.getRowCount() == 0) return;
+        if (JOptionPane.showConfirmDialog(this, "Clear cart?", "Confirm", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+            cartModel.setRowCount(0);
+            calculateTotal();
         }
+    }
+
+    private void calculateTotal() {
+        grandTotal = 0;
+        for (int i = 0; i < cartModel.getRowCount(); i++) {
+            grandTotal += (double) cartModel.getValueAt(i, 4);
+        }
+        totalLabel.setText(String.format("%.2f ETB", grandTotal));
+    }
+
+    private void updateRowSubtotal(int r) {
+        try {
+            int q = Integer.parseInt(cartModel.getValueAt(r, 2).toString());
+            int max = (int) cartModel.getValueAt(r, 5);
+            if (q > max) {
+                JOptionPane.showMessageDialog(this, "Only " + max + " available.");
+                q = max;
+                cartModel.setValueAt(q, r, 2);
+            }
+            double price = (double) cartModel.getValueAt(r, 3);
+            cartModel.setValueAt(q * price, r, 4);
+            calculateTotal();
+        } catch (Exception e) { cartModel.setValueAt(1, r, 2); }
+    }
+
+    private JButton createStyledButton(String text, Color bg) {
+        JButton btn = new JButton(text);
+        btn.setBackground(bg);
+        btn.setForeground(Color.WHITE);
+        btn.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btn.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
+        btn.setFocusPainted(false);
+        return btn;
+    }
+
+    private void setupTableAppearance() {
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        cartTable.getColumnModel().getColumn(2).setCellRenderer(centerRenderer);
+
+        cartTable.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object v, boolean isS, boolean hasF, int r, int c) {
+                Component comp = super.getTableCellRendererComponent(t, v, isS, hasF, r, c);
+                comp.setForeground(SUCCESS_COLOR);
+                comp.setFont(comp.getFont().deriveFont(Font.BOLD));
+                return comp;
+            }
+        });
+
+        cartTable.getColumnModel().removeColumn(cartTable.getColumnModel().getColumn(5));
+        cartTable.getColumnModel().removeColumn(cartTable.getColumnModel().getColumn(0));
     }
 
     private void processSearch() {
@@ -229,54 +342,55 @@ public class SalesPanel extends JPanel {
     }
 
     private void addResultToCart(DefaultTableModel res, int row) {
-        try {
-            int id = (int) res.getValueAt(row, 0);
-            String name = res.getValueAt(row, 1).toString();
-            double price = Double.parseDouble(res.getValueAt(row, 4).toString());
-            for (int i = 0; i < cartModel.getRowCount(); i++) {
-                if (cartModel.getValueAt(i, 0).equals(id)) {
-                    int qty = Integer.parseInt(cartModel.getValueAt(i, 3).toString()) + 1;
-                    cartModel.setValueAt(qty, i, 3); updateRowSubtotal(i); return;
-                }
+        int id = (int) res.getValueAt(row, 0);
+        String name = res.getValueAt(row, 1).toString();
+        double price = Double.parseDouble(res.getValueAt(row, 4).toString());
+        int stock = Integer.parseInt(res.getValueAt(row, 5).toString());
+
+        if (stock <= 0) {
+            JOptionPane.showMessageDialog(this, "Out of stock!");
+            return;
+        }
+
+        for (int i = 0; i < cartModel.getRowCount(); i++) {
+            if ((int) cartModel.getValueAt(i, 0) == id) {
+                int qty = Integer.parseInt(cartModel.getValueAt(i, 2).toString());
+                cartModel.setValueAt(qty + 1, i, 2);
+                updateRowSubtotal(i);
+                return;
             }
-            int batchId = itemDAO.getAnyAvailableBatch(id);
-            if (batchId != -1) {
-                cartModel.addRow(new Object[]{id, name, batchId, 1, price, price});
-                calculateTotal();
-            } else JOptionPane.showMessageDialog(this, "Out of Stock!");
-        } catch (Exception e) { e.printStackTrace(); }
-    }
-
-    private void updateRowSubtotal(int r) {
-        try {
-            int q = Integer.parseInt(cartModel.getValueAt(r, 3).toString());
-            double p = (double) cartModel.getValueAt(r, 4);
-            cartModel.setValueAt(q * p, r, 5); calculateTotal();
-        } catch (Exception e) {}
-    }
-
-    private void calculateTotal() {
-        grandTotal = 0;
-        for (int i = 0; i < cartModel.getRowCount(); i++) grandTotal += (double) cartModel.getValueAt(i, 5);
-        totalLabel.setText(String.format("%.2f ETB", grandTotal));
+        }
+        cartModel.addRow(new Object[]{id, name, 1, price, price, stock});
+        calculateTotal();
     }
 
     private void showSelectionDialog(DefaultTableModel res) {
         JTable t = new JTable(res);
-        if (JOptionPane.showConfirmDialog(this, new JScrollPane(t), "Select Item", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION && t.getSelectedRow() != -1)
+        t.setRowHeight(30);
+        if (JOptionPane.showConfirmDialog(this, new JScrollPane(t), "Select Product", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION && t.getSelectedRow() != -1)
             addResultToCart(res, t.getSelectedRow());
     }
 
-    private void setupTableAppearance() {
-        DefaultTableCellRenderer center = new DefaultTableCellRenderer();
-        center.setHorizontalAlignment(JLabel.CENTER);
-        cartTable.getColumnModel().getColumn(3).setCellRenderer(center);
-        cartTable.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable t, Object v, boolean isS, boolean hasF, int r, int c) {
-                Component comp = super.getTableCellRendererComponent(t, v, isS, hasF, r, c);
-                setForeground(new Color(39, 174, 96)); setFont(getFont().deriveFont(Font.BOLD)); return comp;
-            }
-        });
+    private void loadCustomers() {
+        customerCombo.removeAllItems();
+        Customer walkIn = new Customer();
+        walkIn.setCustomerId(0L);
+        walkIn.setFirstName("Walk-in Customer");
+        walkIn.setLastName("");
+        customerCombo.addItem(walkIn);
+        customerDAO.getAllCustomers().forEach(customerCombo::addItem);
+        customerCombo.setSelectedIndex(0);
+    }
+
+    private void showQuickAddCustomerDialog() {
+        JTextField fName = new JTextField(); JTextField lName = new JTextField(); JTextField mrn = new JTextField();
+        Object[] msg = {"First Name:", fName, "Last Name:", lName, "MRN:", mrn};
+        if (JOptionPane.showConfirmDialog(this, msg, "New Patient", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
+            Customer c = new Customer();
+            c.setFirstName(fName.getText());
+            c.setLastName(lName.getText());
+            c.setMedicalRecordNumber(mrn.getText());
+            if (customerDAO.saveCustomer(c)) { loadCustomers(); customerCombo.setSelectedItem(c); }
+        }
     }
 }

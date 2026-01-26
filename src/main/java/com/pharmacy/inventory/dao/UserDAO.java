@@ -15,19 +15,14 @@ public class UserDAO {
         this.dataSource = dataSource;
     }
 
-    /**
-     * Verifies user credentials and returns a User object if successful.
-     */
     public User authenticate(String email, String password) {
-        // In a real app, use: SELECT * FROM users WHERE email = ?
-        // Then verify the password_hash using BCrypt.checkpw()
         String sql = "SELECT user_id, name, email, role FROM users WHERE email = ? AND password_hash = ?";
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, email);
-            ps.setString(2, password); // For testing, we assume plain text or pre-hashed match
+            ps.setString(2, password);
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -79,7 +74,6 @@ public class UserDAO {
             return rowsAffected > 0;
 
         } catch (SQLException e) {
-            // This will catch errors like duplicate emails due to the UNIQUE constraint
             System.err.println("Error adding user: " + e.getMessage());
             return false;
         }

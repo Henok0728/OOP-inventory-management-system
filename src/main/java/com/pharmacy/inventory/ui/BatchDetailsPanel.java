@@ -15,13 +15,13 @@ public class BatchDetailsPanel extends JPanel {
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Header with Back Button
+
         JPanel header = new JPanel(new BorderLayout());
         titleLabel = new JLabel("Batch Details");
         titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
 
         JButton backBtn = new JButton("← Back to Products");
-        // This is the line causing your error - it needs Inventory.showPage()
+
         backBtn.addActionListener(e -> Inventory.showPage("Products"));
 
         header.add(titleLabel, BorderLayout.WEST);

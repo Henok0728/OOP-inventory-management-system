@@ -15,9 +15,6 @@ public class CustomerDAO {
     @Autowired
     private DataSource dataSource;
 
-    /**
-     * Fetches all registered customers for the selection dropdown.
-     */
     public List<Customer> getAllCustomers() {
         List<Customer> customers = new ArrayList<>();
         String sql = "SELECT * FROM customers ORDER BY first_name ASC";
@@ -40,9 +37,6 @@ public class CustomerDAO {
         return customers;
     }
 
-    /**
-     * Missing Method: Saves a new customer during the 'Quick Add' process.
-     */
     public boolean saveCustomer(Customer c) {
         String sql = "INSERT INTO customers (first_name, last_name, medical_record_number, created_at) VALUES (?, ?, ?, NOW())";
 
@@ -56,7 +50,6 @@ public class CustomerDAO {
             int affectedRows = ps.executeUpdate();
 
             if (affectedRows > 0) {
-                // Fetch the new ID and set it back to the object
                 try (ResultSet rs = ps.getGeneratedKeys()) {
                     if (rs.next()) {
                         c.setCustomerId(rs.getLong(1));
