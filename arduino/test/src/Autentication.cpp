@@ -1,14 +1,15 @@
 #include <Arduino.h>
 #include <Servo.h>
 
-
-
 class digitalPin {
 private:
     unsigned int digital_pin;
 public:
-    digitalPin(int digitalPin) : digital_pin(digitalPin) {
-        pinMode(digital_pin, OUTPUT); }
+    digitalPin(int digitalPin) : digital_pin(digitalPin) {}
+
+    void init(){
+        pinMode(digital_pin, OUTPUT);
+    }
 
     void on() {
         digitalWrite(digital_pin, HIGH);
@@ -60,17 +61,18 @@ public:
     }
 };
 
+#define buzzerPin 3
+#define redPin 4
+#define doorPin 5
 
-// // RFID
-// Door Lockerdoor(5);
+// initialize all functions
+Buzzer buzz(buzzerPin);
+Led closedLed(redPin);
+Door door(doorPin);
 
-// void setup() {
-//     Lockerdoor.init();
-// }
+void setup(){
 
-// void loop() {
-//     Lockerdoor.open();
-//     delay(2000);
-//     Lockerdoor.close();
-//     delay(2000);
-// }
+}
+void loop(){
+
+}
