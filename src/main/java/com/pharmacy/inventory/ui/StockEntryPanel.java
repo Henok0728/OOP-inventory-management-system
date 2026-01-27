@@ -1,26 +1,27 @@
 package com.pharmacy.inventory.ui;
 
-import com.pharmacy.inventory.dao.BatchDAO;
-import com.pharmacy.inventory.dao.ItemDAO;
-import com.pharmacy.inventory.dao.SupplierDAO;
+import com.pharmacy.inventory.dao.*;
 import com.pharmacy.inventory.model.Batch;
 import com.pharmacy.inventory.model.Supplier;
 import com.pharmacy.inventory.model.Item;
+import com.pharmacy.inventory.util.UserSession;
 
 import javax.swing.*;
-import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.util.List;
+
 
 public class StockEntryPanel extends JPanel {
 
     private final BatchDAO batchDAO;
     private final ItemDAO itemDAO;
     private final SupplierDAO supplierDAO;
+    private final PurchaseDAO purchaseDAO;
+    private final AuditDAO auditDAO;
 
-    // Components
     private JComboBox<Item> itemCombo;
     private JComboBox<Supplier> supplierCombo;
+    private JComboBox<String> pendingOrderCombo;
     private JTextField batchNumF = new JTextField();
     private JTextField qtyF = new JTextField();
     private JTextField purchasePriceF = new JTextField();
@@ -29,10 +30,13 @@ public class StockEntryPanel extends JPanel {
     private JTextField expDateF = new JTextField("YYYY-MM-DD");
     private JTextField storageF = new JTextField();
 
-    public StockEntryPanel(BatchDAO batchDAO, ItemDAO itemDAO, SupplierDAO supplierDAO) {
+    public StockEntryPanel(BatchDAO batchDAO, ItemDAO itemDAO, SupplierDAO supplierDAO,
+                           PurchaseDAO purchaseDAO, AuditDAO auditDAO) {
         this.batchDAO = batchDAO;
         this.itemDAO = itemDAO;
         this.supplierDAO = supplierDAO;
+        this.purchaseDAO = purchaseDAO;
+        this.auditDAO = auditDAO;
 
         setLayout(new BorderLayout(15, 15));
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -42,12 +46,10 @@ public class StockEntryPanel extends JPanel {
     }
 
     private void initializeUI() {
-        // --- HEADER ---
-        JLabel header = new JLabel("📦 New Stock Receipt (Batch Entry)");
+        JLabel header = new JLabel("📦 Stock Receipt & Reconciliation");
         header.setFont(new Font("SansSerif", Font.BOLD, 22));
         add(header, BorderLayout.NORTH);
 
-        // --- FORM PANEL ---
         JPanel formContainer = new JPanel(new GridBagLayout());
         formContainer.setBackground(Color.WHITE);
         formContainer.setBorder(BorderFactory.createCompoundBorder(
@@ -56,94 +58,106 @@ public class StockEntryPanel extends JPanel {
         ));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.insets = new Insets(8, 10, 8, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Row 0: Select Item
         gbc.gridx = 0; gbc.gridy = 0;
+        formContainer.add(new JLabel("Fulfill Approved Order:"), gbc);
+        gbc.gridx = 1;
+        pendingOrderCombo = new JComboBox<>();
+        pendingOrderCombo.addActionListener(e -> onOrderSelected());
+        formContainer.add(pendingOrderCombo, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 1;
         formContainer.add(new JLabel("Select Medicine:"), gbc);
         gbc.gridx = 1;
         itemCombo = new JComboBox<>();
         formContainer.add(itemCombo, gbc);
 
-        // Row 1: Select Supplier
-        gbc.gridx = 0; gbc.gridy = 1;
+        gbc.gridx = 0; gbc.gridy = 2;
         formContainer.add(new JLabel("Supplier:"), gbc);
         gbc.gridx = 1;
         supplierCombo = new JComboBox<>();
         formContainer.add(supplierCombo, gbc);
 
-        // Row 2: Batch Number & Storage
-        gbc.gridx = 0; gbc.gridy = 2;
-        formContainer.add(new JLabel("Batch Number:"), gbc);
-        gbc.gridx = 1;
-        formContainer.add(batchNumF, gbc);
+        addFormField(formContainer, gbc, 3, "Batch Number:", batchNumF);
+        addFormField(formContainer, gbc, 4, "Quantity Received:", qtyF);
+        addFormField(formContainer, gbc, 5, "Purchase Price (Unit):", purchasePriceF);
+        addFormField(formContainer, gbc, 6, "Selling Price (Unit):", sellingPriceF);
+        addFormField(formContainer, gbc, 7, "Mfg Date:", mfgDateF);
+        addFormField(formContainer, gbc, 8, "Expiry Date:", expDateF);
+        addFormField(formContainer, gbc, 9, "Storage Area:", storageF);
 
-        // Row 3: Quantity & Storage
-        gbc.gridx = 0; gbc.gridy = 3;
-        formContainer.add(new JLabel("Quantity Received:"), gbc);
-        gbc.gridx = 1;
-        formContainer.add(qtyF, gbc);
-
-        // Row 4: Pricing
-        gbc.gridx = 0; gbc.gridy = 4;
-        formContainer.add(new JLabel("Purchase Price (Unit):"), gbc);
-        gbc.gridx = 1;
-        formContainer.add(purchasePriceF, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 5;
-        formContainer.add(new JLabel("Selling Price (Unit):"), gbc);
-        gbc.gridx = 1;
-        formContainer.add(sellingPriceF, gbc);
-
-        // Row 6: Dates
-        gbc.gridx = 0; gbc.gridy = 6;
-        formContainer.add(new JLabel("Mfg Date:"), gbc);
-        gbc.gridx = 1;
-        formContainer.add(mfgDateF, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 7;
-        formContainer.add(new JLabel("Expiry Date:"), gbc);
-        gbc.gridx = 1;
-        formContainer.add(expDateF, gbc);
-
-        // Row 8: Storage Location
-        gbc.gridx = 0; gbc.gridy = 8;
-        formContainer.add(new JLabel("Storage Shelf/Area:"), gbc);
-        gbc.gridx = 1;
-        formContainer.add(storageF, gbc);
-
-        // Buttons
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        btnPanel.setOpaque(false);
-        JButton saveBtn = new JButton("Confirm Stock Entry");
+        JButton saveBtn = new JButton("Generate GRN & Save Stock");
+        saveBtn.setToolTipText("Reconciles physical delivery with the Purchase Order");
         saveBtn.setBackground(new Color(40, 167, 69));
         saveBtn.setForeground(Color.WHITE);
-        saveBtn.setPreferredSize(new Dimension(180, 40));
+        saveBtn.setPreferredSize(new Dimension(220, 40));
         saveBtn.addActionListener(e -> handleSave());
 
-        btnPanel.add(saveBtn);
+        gbc.gridx = 0; gbc.gridy = 10; gbc.gridwidth = 2;
+        formContainer.add(saveBtn, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 9; gbc.gridwidth = 2;
-        formContainer.add(btnPanel, gbc);
-
-        add(formContainer, BorderLayout.CENTER);
-
+        add(new JScrollPane(formContainer), BorderLayout.CENTER);
         refreshData();
+    }
+
+    private void addFormField(JPanel p, GridBagConstraints gbc, int row, String lab, JTextField f) {
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
+        p.add(new JLabel(lab), gbc);
+        gbc.gridx = 1;
+        p.add(f, gbc);
+    }
+
+    private void onOrderSelected() {
+        Object selected = pendingOrderCombo.getSelectedItem();
+        if (selected != null && !selected.toString().equals("None (New Purchase)")) {
+            long pId = Long.parseLong(selected.toString());
+            int sId = purchaseDAO.getSupplierIdByPurchase(pId);
+            for (int i = 0; i < supplierCombo.getItemCount(); i++) {
+                if (supplierCombo.getItemAt(i).getSupplierId() == sId) {
+                    supplierCombo.setSelectedIndex(i);
+                    supplierCombo.setEnabled(false);
+                    break;
+                }
+            }
+        } else {
+            supplierCombo.setEnabled(true);
+        }
     }
 
     private void handleSave() {
         try {
-            Item selectedItem = (Item) itemCombo.getSelectedItem();
-            Supplier selectedSupplier = (Supplier) supplierCombo.getSelectedItem();
+            Item item = (Item) itemCombo.getSelectedItem();
+            Supplier supplier = (Supplier) supplierCombo.getSelectedItem();
+            String poIdStr = (String) pendingOrderCombo.getSelectedItem();
 
-            if (selectedItem == null) throw new Exception("Please select a medicine.");
+            if (item == null || supplier == null) throw new Exception("Medicine and Supplier required.");
 
+
+            int qty = Integer.parseInt(qtyF.getText());
+            double price = Double.parseDouble(purchasePriceF.getText());
+            double actualTotal = qty * price;
+
+            // Variance Check
+            if (poIdStr != null && !poIdStr.equals("None (New Purchase)")) {
+                long poId = Long.parseLong(poIdStr);
+                double approvedAmt = purchaseDAO.getApprovedAmount(poId);
+
+                if (actualTotal > (approvedAmt * 1.15)) { // 15% Variance threshold
+                    int res = JOptionPane.showConfirmDialog(this,
+                            "Actual total is significantly higher than approved. Proceed?",
+                            "Price Variance", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                    if (res != JOptionPane.YES_OPTION) return;
+                }
+            }
+
+            // Create Batch
             Batch b = new Batch();
-            b.setItemId(selectedItem.getItem_id());
+            b.setItemId(item.getItem_id());
             b.setBatchNumber(batchNumF.getText());
-            b.setQuantityReceived(Integer.parseInt(qtyF.getText()));
-            b.setPurchasePrice(Double.parseDouble(purchasePriceF.getText()));
+            b.setQuantityReceived(qty);
+            b.setPurchasePrice(price);
             b.setSellingPrice(Double.parseDouble(sellingPriceF.getText()));
             b.setManufacturedDate(mfgDateF.getText());
             b.setExpirationDate(expDateF.getText());
@@ -151,8 +165,22 @@ public class StockEntryPanel extends JPanel {
             b.setStatus("active");
 
             if (batchDAO.addBatch(b)) {
-                JOptionPane.showMessageDialog(this, "Inventory updated successfully!");
+                supplierDAO.linkItemToSupplier(item.getItem_id(), supplier.getSupplierId());
+
+                if (poIdStr != null && !poIdStr.equals("None (New Purchase)")) {
+                    // Formal Close
+                    purchaseDAO.reconcileAndClose(Long.parseLong(poIdStr), actualTotal);
+                } else {
+
+                    purchaseDAO.createPurchaseOrder(supplier.getSupplierId(), actualTotal,
+                            UserSession.getCurrentUser().getUserId(), "admin");
+
+                }
+
+                auditDAO.log("STOCK_RECEIPT", "batches", item.getItem_id());
+                JOptionPane.showMessageDialog(this, "Inventory updated and PO reconciled!");
                 clearForm();
+                refreshData();
             }
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
@@ -160,24 +188,24 @@ public class StockEntryPanel extends JPanel {
     }
 
     public void refreshData() {
-
         itemCombo.removeAllItems();
         supplierCombo.removeAllItems();
+        pendingOrderCombo.removeAllItems();
 
-        List<Item> items = itemDAO.getAllItemsList();
-        for (Item i : items) itemCombo.addItem(i);
+        itemDAO.getAllItemsList().forEach(itemCombo::addItem);
+        supplierDAO.getAllSuppliers().forEach(supplierCombo::addItem);
+        pendingOrderCombo.addItem("None (New Purchase)");
 
-        List<Supplier> suppliers = supplierDAO.getAllSuppliers();
-        for (Supplier s : suppliers) supplierCombo.addItem(s);
+        if (UserSession.getCurrentUser() != null) {
+            purchaseDAO.getMyApprovedOrders(UserSession.getCurrentUser().getUserId())
+                    .forEach(id -> pendingOrderCombo.addItem(String.valueOf(id)));
+        }
     }
 
     private void clearForm() {
-        batchNumF.setText("");
-        qtyF.setText("");
-        purchasePriceF.setText("");
-        sellingPriceF.setText("");
-        mfgDateF.setText("YYYY-MM-DD");
-        expDateF.setText("YYYY-MM-DD");
-        storageF.setText("");
+        batchNumF.setText(""); qtyF.setText(""); purchasePriceF.setText("");
+        sellingPriceF.setText(""); mfgDateF.setText("YYYY-MM-DD");
+        expDateF.setText("YYYY-MM-DD"); storageF.setText("");
+        pendingOrderCombo.setSelectedIndex(0); supplierCombo.setEnabled(true);
     }
 }

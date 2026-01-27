@@ -22,6 +22,7 @@ public class Inventory {
     @Autowired private AuditDAO auditDAO;
     @Autowired private WasteDAO wasteDAO;
     @Autowired private ReportDAO reportDAO; // Added ReportDAO
+    @Autowired private PurchaseDAO purchaseDAO;
 
     private static BatchDetailsPanel batchDetailView;
     private JFrame frame;
@@ -38,6 +39,7 @@ public class Inventory {
     private WastePanel wastePage;
     private UserManagementPanel userManagementPage;
     private ReportPanel reportPage;
+    private PurchaseOrderPanel purchaseOrderPage;
 
     @PostConstruct
     public void init() {
@@ -90,8 +92,8 @@ public class Inventory {
         homePage = new HomePanel(salesDAO, itemDAO, batchDAO);
         ProductsPanel productsPage = new ProductsPanel(itemDAO, auditDAO);
         SalesPanel salesPage = new SalesPanel(salesDAO, itemDAO, customerDAO, auditDAO);
-        supplierPage = new SupplierPanel(supplierDAO);
-        stockPage = new StockEntryPanel(batchDAO, itemDAO, supplierDAO);
+        supplierPage = new SupplierPanel(supplierDAO, purchaseDAO);
+        stockPage = new StockEntryPanel(batchDAO, itemDAO, supplierDAO, purchaseDAO, auditDAO);
         customerPage = new CustomerPanel(customerDAO);
         historyPage = new SalesHistoryPanel(salesDAO);
         batchPage = new BatchPanel(batchDAO, supplierDAO, itemDAO);
@@ -99,6 +101,7 @@ public class Inventory {
         wastePage = new WastePanel(wasteDAO);
         userManagementPage = new UserManagementPanel(userDAO);
         reportPage = new ReportPanel(reportDAO);
+        purchaseOrderPage = new PurchaseOrderPanel(purchaseDAO, supplierDAO, auditDAO);
 
         JScrollPane homeScroll = new JScrollPane(homePage);
         homeScroll.setBorder(null);
@@ -114,11 +117,13 @@ public class Inventory {
         mainContent.add(salesPage, "Sales");
         mainContent.add(supplierPage, "Suppliers");
         mainContent.add(stockPage, "Stock");
+        mainContent.add(purchaseOrderPage, "Purchase Orders");
         mainContent.add(customerPage, "Customers");
         mainContent.add(historyPage, "History");
         mainContent.add(auditPage, "Audit");
         mainContent.add(wastePage, "Waste");
         mainContent.add(reportPage, "Reports");
+
 
         frame.add(createHeader(), BorderLayout.NORTH);
         frame.add(createSidebar(), BorderLayout.WEST);
@@ -180,6 +185,7 @@ public class Inventory {
 
         if (role.equals("admin") || role.equals("pharmacist") || role.equals("manager")) {
             addSidebarButton(sidebar, "Stock");
+            addSidebarButton(sidebar, "Purchase Orders");
             addSidebarButton(sidebar, "Suppliers");
             addSidebarButton(sidebar, "Waste");
         }
@@ -219,6 +225,7 @@ public class Inventory {
         if (item.equals("Home")) homePage.refreshData();
         if (item.equals("Suppliers")) supplierPage.refreshData();
         if (item.equals("Stock")) stockPage.refreshData();
+        if (item.equals("Purchase Orders")) purchaseOrderPage.refreshData();
         if (item.equals("Customers")) customerPage.loadData();
         if (item.equals("History")) historyPage.refreshData();
         if (item.equals("Batches")) batchPage.refreshData();
