@@ -160,12 +160,10 @@ public class StockEntryPanel extends JPanel {
     }
 
     public void refreshData() {
-        // Reload items and suppliers into combos
+
         itemCombo.removeAllItems();
         supplierCombo.removeAllItems();
 
-        // Note: You might need to add a method to itemDAO to return List<Item>
-        // for simpler combo box population
         List<Item> items = itemDAO.getAllItemsList();
         for (Item i : items) itemCombo.addItem(i);
 

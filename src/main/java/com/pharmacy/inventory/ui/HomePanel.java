@@ -35,6 +35,7 @@ public class HomePanel extends JPanel {
 
         // Real Profit (ETB)
         double profit = salesDAO.getTodaysProfit();
+        salesDAO.getTodaysProfit();
         kpiContainer.add(createKpiCard("Today's Profit", String.format("%.2f ETB", profit), new Color(40, 167, 69)));
 
         // Real Revenue (ETB)
@@ -116,7 +117,6 @@ public class HomePanel extends JPanel {
         table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object v, boolean isS, boolean hasF, int r, int c) {
-                // Ensure currency values in tables also show ETB if they are strings
                 String text = (v == null) ? "" : v.toString().replace("$", "ETB ");
                 return super.getTableCellRendererComponent(t, text, isS, hasF, r, c);
             }

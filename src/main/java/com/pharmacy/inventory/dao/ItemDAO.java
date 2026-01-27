@@ -15,10 +15,6 @@ public class ItemDAO {
     @Autowired
     private DataSource dataSource;
 
-    /**
-     * Fetches all items for the ProductsPanel table.
-     * Includes a calculated total stock from all active batches.
-     */
     public DefaultTableModel getAllItems() {
         DefaultTableModel dtm = new DefaultTableModel();
         String sql = "SELECT i.item_id, i.name, i.generic_name, i.brand_name, i.barcode, " +

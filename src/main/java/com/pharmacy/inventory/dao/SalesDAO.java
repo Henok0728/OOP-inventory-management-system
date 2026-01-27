@@ -12,103 +12,104 @@ public class SalesDAO {
     @Autowired
     private DataSource dataSource;
 
-    /**
-     * The Main Transaction Engine:
-     * Saves the Sale Header, all Sale Items, and updates Batch Stock levels.
-     */
+
     public boolean executeSale(Long customerId, DefaultTableModel cart, String paymentMethod, double totalAmount) {
         String insertSale = "INSERT INTO sales (customer_id, total_amount, payment_method, sale_date) VALUES (?, ?, ?, NOW())";
-        String insertItem = "INSERT INTO sale_items (sale_id, item_id, batch_id, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?, ?)";
-        String updateStock = "UPDATE batches SET quantity_remaining = quantity_remaining - ? WHERE batch_id = ? AND quantity_remaining >= ?";
+        String findBatches = "SELECT batch_id, quantity_remaining FROM batches " +
+                "WHERE item_id = ? AND quantity_remaining > 0 AND status = 'active' " +
+                "AND expiration_date > CURDATE() ORDER BY expiration_date ASC"; // FEFO Logic
+        String updateBatch = "UPDATE batches SET quantity_remaining = quantity_remaining - ? WHERE batch_id = ?";
+        String insertSaleItem = "INSERT INTO sale_items (sale_id, item_id, batch_id, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?, ?)";
 
         Connection conn = null;
         try {
             conn = dataSource.getConnection();
-            conn.setAutoCommit(false); // Enable ACID transaction
+            conn.setAutoCommit(false);
 
-            long saleId = -1;
             // 1. Create Sale Header
-            try (PreparedStatement ps1 = conn.prepareStatement(insertSale, Statement.RETURN_GENERATED_KEYS)) {
-                if (customerId == null || customerId <= 0) {
-                    ps1.setNull(1, Types.BIGINT);
-                } else {
-                    ps1.setLong(1, customerId);
-                }
-                ps1.setDouble(2, totalAmount);
-                ps1.setString(3, paymentMethod);
-                ps1.executeUpdate();
-
-                ResultSet rs = ps1.getGeneratedKeys();
+            long saleId = -1;
+            try (PreparedStatement psSale = conn.prepareStatement(insertSale, Statement.RETURN_GENERATED_KEYS)) {
+                if (customerId == null || customerId <= 0) psSale.setNull(1, Types.BIGINT);
+                else psSale.setLong(1, customerId);
+                psSale.setDouble(2, totalAmount);
+                psSale.setString(3, paymentMethod);
+                psSale.executeUpdate();
+                ResultSet rs = psSale.getGeneratedKeys();
                 if (rs.next()) saleId = rs.getLong(1);
             }
 
-            if (saleId == -1) throw new SQLException("Failed to create sale header.");
+            // 2. Loop through Cart items
+            for (int i = 0; i < cart.getRowCount(); i++) {
+                int itemId = (int) cart.getValueAt(i, 0);
+                int qtyNeeded = Integer.parseInt(cart.getValueAt(i, 2).toString());
+                double unitPrice = (double) cart.getValueAt(i, 3);
 
-            // 2. Process Cart and Stock
-            try (PreparedStatement psItem = conn.prepareStatement(insertItem);
-                 PreparedStatement psStock = conn.prepareStatement(updateStock)) {
+                // 3. Find available batches for this item (FEFO)
+                try (PreparedStatement psFind = conn.prepareStatement(findBatches)) {
+                    psFind.setInt(1, itemId);
+                    ResultSet rsBatch = psFind.executeQuery();
 
-                for (int i = 0; i < cart.getRowCount(); i++) {
-                    int itemId = (int) cart.getValueAt(i, 0);
-                    int batchId = (int) cart.getValueAt(i, 2);
-                    int qty = Integer.parseInt(cart.getValueAt(i, 3).toString());
-                    double unitPrice = (double) cart.getValueAt(i, 4);
-                    double subtotal = (double) cart.getValueAt(i, 5);
+                    while (qtyNeeded > 0 && rsBatch.next()) {
+                        int batchId = rsBatch.getInt("batch_id");
+                        int available = rsBatch.getInt("quantity_remaining");
+                        int take = Math.min(qtyNeeded, available);
 
-                    // Add to Sale Items batch
-                    psItem.setLong(1, saleId);
-                    psItem.setInt(2, itemId);
-                    psItem.setInt(3, batchId);
-                    psItem.setInt(4, qty);
-                    psItem.setDouble(5, unitPrice);
-                    psItem.setDouble(6, subtotal);
-                    psItem.addBatch();
+                        // Update Batch
+                        try (PreparedStatement psUpd = conn.prepareStatement(updateBatch)) {
+                            psUpd.setInt(1, take);
+                            psUpd.setInt(2, batchId);
+                            psUpd.executeUpdate();
+                        }
 
-                    // Add to Stock Reduction batch
-                    psStock.setInt(1, qty);
-                    psStock.setInt(2, batchId);
-                    psStock.setInt(3, qty); // Check constraint: must have enough stock
-                    psStock.addBatch();
-                }
+                        // Log Sale Item linked to this specific batch
+                        try (PreparedStatement psItem = conn.prepareStatement(insertSaleItem)) {
+                            psItem.setLong(1, saleId);
+                            psItem.setInt(2, itemId);
+                            psItem.setInt(3, batchId);
+                            psItem.setInt(4, take);
+                            psItem.setDouble(5, unitPrice);
+                            psItem.setDouble(6, take * unitPrice);
+                            psItem.executeUpdate();
+                        }
 
-                psItem.executeBatch();
-                int[] stockResults = psStock.executeBatch();
+                        qtyNeeded -= take;
+                    }
 
-                // Verify all stock updates succeeded
-                for (int res : stockResults) {
-                    if (res == 0) throw new SQLException("Insufficient stock in one of the batches.");
+                    if (qtyNeeded > 0) throw new SQLException("Insufficient unexpired stock for item ID: " + itemId);
                 }
             }
-
-            conn.commit(); // Finalize transaction
+            conn.commit();
             return true;
-
         } catch (SQLException e) {
-            if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
-            }
+            if (conn != null) try { conn.rollback(); } catch (SQLException ex) {}
             e.printStackTrace();
             return false;
         } finally {
-            if (conn != null) {
-                try { conn.close(); } catch (SQLException e) { e.printStackTrace(); }
-            }
+            if (conn != null) try { conn.close(); } catch (SQLException e) {}
         }
     }
-
     // --- DASHBOARD METHODS (Used by HomePanel) ---
 
     public double getTodaysProfit() {
+        // We filter by s.total_amount > 0 to exclude voided/cancelled transactions
         String sql = "SELECT SUM((si.unit_price - b.purchase_price) * si.quantity) " +
                 "FROM sale_items si " +
                 "JOIN sales s ON si.sale_id = s.sale_id " +
                 "JOIN batches b ON si.batch_id = b.batch_id " +
-                "WHERE DATE(s.sale_date) = CURDATE()";
+                "WHERE DATE(s.sale_date) = CURDATE() " +
+                "AND s.total_amount > 0";
+
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
-            if (rs.next()) return rs.getDouble(1);
-        } catch (SQLException e) { e.printStackTrace(); }
+
+
+            if (rs.next()) {
+                return rs.getDouble(1);
+            }
+        } catch (SQLException e) {
+            System.err.println("Profit calculation error: " + e.getMessage());
+        }
         return 0.0;
     }
 
@@ -173,7 +174,6 @@ public class SalesDAO {
                         rs.getTimestamp("sale_date"),
                         rs.getString("customer_name"),
                         rs.getDouble("total_amount"),
-                        // VITAL FIX: Use the alias 'payment_status' here instead of 'payment_method'
                         rs.getString("payment_status"),
                         rs.getDouble("discount")
                 });
@@ -212,7 +212,6 @@ public class SalesDAO {
     public boolean voidSale(int saleId) {
         String getItemsSql = "SELECT item_id, batch_id, quantity FROM sale_items WHERE sale_id = ?";
         String updateBatchSql = "UPDATE batches SET quantity_remaining = quantity_remaining + ? WHERE batch_id = ?";
-        // We remove the payment_method update to avoid violating the CHECK constraint
         String updateSaleSql = "UPDATE sales SET total_amount = 0, discount = 0 WHERE sale_id = ?";
 
         Connection conn = null;

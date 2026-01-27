@@ -15,7 +15,7 @@ import java.awt.*;
 public class ProductsPanel extends JPanel {
 
     private final ItemDAO itemDAO;
-    private final AuditDAO auditDAO; // Added AuditDAO
+    private final AuditDAO auditDAO;
 
     private JTable table;
     private DefaultTableModel tableModel;
@@ -132,7 +132,9 @@ public class ProductsPanel extends JPanel {
     }
 
     private void addFormRow(JPanel p, String label, JComponent comp, GridBagConstraints gbc, int row) {
-        gbc.gridwidth = 1; gbc.gridx = 0; gbc.gridy = row;
+        gbc.gridwidth = 1;
+        gbc.gridx = 0;
+        gbc.gridy = row;
         p.add(new JLabel(label), gbc);
         gbc.gridx = 1;
         p.add(comp, gbc);
@@ -248,7 +250,7 @@ public class ProductsPanel extends JPanel {
                 if (tableModel == null) return;
                 TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(tableModel);
                 table.setRowSorter(sorter);
-                sorter.setRowFilter(RowFilter.regexFilter("(?i)" + searchF.getText()));
+                sorter.setRowFilter(RowFilter.regexFilter("(?i)" + searchF.getText())); // (?i) stand
             }
         });
     }

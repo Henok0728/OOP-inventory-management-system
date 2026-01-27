@@ -28,7 +28,7 @@ public class WastePanel extends JPanel {
         // Control Section
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton refreshBtn = new JButton("↻ Refresh Waste Log");
-        refreshBtn.setBackground(new Color(231, 76, 60)); // Red tint for waste
+        refreshBtn.setBackground(new Color(231, 76, 60));
         refreshBtn.setForeground(Color.WHITE);
 
         refreshBtn.addActionListener(e -> refreshData());

@@ -14,10 +14,8 @@ public class WasteDAO {
         this.dataSource = dataSource;
     }
 
-    // Find products that are expired but still in the "batches" table
     public List<Map<String, Object>> getExpiredBatches() {
         List<Map<String, Object>> list = new ArrayList<>();
-        // Added i.item_id to the SELECT statement
         String sql = "SELECT b.batch_id, i.item_id, i.name, b.batch_number, b.quantity_remaining, b.expiration_date " +
                 "FROM batches b JOIN items i ON b.item_id = i.item_id " +
                 "WHERE b.expiration_date <= CURDATE() AND b.quantity_remaining > 0";
@@ -37,9 +35,9 @@ public class WasteDAO {
         } catch (SQLException e) { e.printStackTrace(); }
         return list;
     }
-    // Move a batch to waste and set quantity to 0 in batches table
+
     public void moveToWaste(int batchId, int itemId, int qty, String reason, int userId) {
-        // Ensure 'reason' passed here is 'expired', 'damaged', or 'recalled'
+
         String sql = "INSERT INTO waste (batch_id, item_id, quantity_removed, reason, processed_by) VALUES (?, ?, ?, ?, ?)";
 
         try (Connection conn = dataSource.getConnection();
@@ -51,7 +49,6 @@ public class WasteDAO {
             ps.setInt(5, userId);
             ps.executeUpdate();
         } catch (SQLException e) {
-            // This will now catch and print if a constraint is still violated
             e.printStackTrace();
         }
     }
@@ -66,8 +63,6 @@ public class WasteDAO {
         columns.add("Date");
 
         Vector<Vector<Object>> data = new Vector<>();
-
-        // Using your exact column names: quantity_removed, recorded_at, item_id
         String sql = "SELECT w.waste_id, i.name as item_name, b.batch_number, w.quantity_removed, " +
                 "w.reason, u.name as staff_name, w.recorded_at " +
                 "FROM waste w " +
@@ -85,10 +80,10 @@ public class WasteDAO {
                 row.add(rs.getLong("waste_id"));
                 row.add(rs.getString("item_name"));
                 row.add(rs.getString("batch_number"));
-                row.add(rs.getInt("quantity_removed")); // Corrected column name
+                row.add(rs.getInt("quantity_removed"));
                 row.add(rs.getString("reason"));
                 row.add(rs.getString("staff_name"));
-                row.add(rs.getTimestamp("recorded_at")); // Corrected column name
+                row.add(rs.getTimestamp("recorded_at"));
                 data.add(row);
             }
         } catch (SQLException e) {
@@ -98,7 +93,6 @@ public class WasteDAO {
     }
 
     public void removeStockFromBatch(int batchId) {
-        // We set remaining to 0 because the entire batch is being discarded as waste
         String sql = "UPDATE batches SET quantity_remaining = 0, status = 'expired' WHERE batch_id = ?";
 
         try (Connection conn = dataSource.getConnection();

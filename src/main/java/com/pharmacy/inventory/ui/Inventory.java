@@ -1,19 +1,15 @@
 package com.pharmacy.inventory.ui;
 
 import com.pharmacy.inventory.dao.*;
+import com.pharmacy.inventory.service.RFIDService;
 import com.pharmacy.inventory.util.UserSession;
-import com.pharmacy.inventory.ui.NotificationManager; // Import the utility we created
+import com.pharmacy.inventory.ui.NotificationManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import com.pharmacy.inventory.dao.BatchDAO;
-import com.pharmacy.inventory.dao.CustomerDAO;
-import com.pharmacy.inventory.dao.ItemDAO;
-import com.pharmacy.inventory.dao.SalesDAO;
-import com.pharmacy.inventory.dao.SupplierDAO;
-
 import jakarta.annotation.PostConstruct;
 
+import javax.swing.*;
+import java.awt.*;
 
 @Component
 public class Inventory {
@@ -25,6 +21,7 @@ public class Inventory {
     @Autowired private UserDAO userDAO;
     @Autowired private AuditDAO auditDAO;
     @Autowired private WasteDAO wasteDAO;
+    @Autowired private ReportDAO reportDAO; // Added ReportDAO
 
     private static BatchDetailsPanel batchDetailView;
     private JFrame frame;
@@ -39,9 +36,38 @@ public class Inventory {
     private BatchPanel batchPage;
     private AuditLogPanel auditPage;
     private WastePanel wastePage;
+    private UserManagementPanel userManagementPage;
+    private ReportPanel reportPage;
 
     @PostConstruct
     public void init() {
+
+        try {
+            com.formdev.flatlaf.FlatLightLaf.setup();
+
+            // Global Typography & Shapes
+            UIManager.put("defaultFont", new Font("Inter", Font.PLAIN, 14));
+            UIManager.put("Button.arc", 8);
+            UIManager.put("Component.arc", 8);
+            UIManager.put("TextComponent.arc", 8);
+
+            // Table Styling (Modern, No Monospaced)
+            UIManager.put("Table.font", new Font("Inter", Font.PLAIN, 13));
+            UIManager.put("Table.alternateRowColor", new Color(248, 249, 250));
+            UIManager.put("Table.rowHeight", 35);
+            UIManager.put("Table.showHorizontalLines", true);
+            UIManager.put("Table.gridColor", new Color(230, 230, 230));
+            UIManager.put("Table.selectionBackground", new Color(52, 152, 219, 40));
+            UIManager.put("Table.selectionForeground", Color.BLACK);
+
+            // Scrollbars
+            UIManager.put("ScrollBar.width", 10);
+            UIManager.put("ScrollBar.thumbArc", 999);
+
+        } catch (Exception e) {
+            System.err.println("Failed to initialize FlatLaf");
+        }
+
         SwingUtilities.invokeLater(this::showLogin);
     }
 
@@ -51,6 +77,7 @@ public class Inventory {
     }
 
     public void prepareGUI() {
+
         frame = new JFrame("Pharmacy Management System v1.0");
         frame.setSize(1350, 850);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -70,6 +97,8 @@ public class Inventory {
         batchPage = new BatchPanel(batchDAO, supplierDAO, itemDAO);
         auditPage = new AuditLogPanel(auditDAO);
         wastePage = new WastePanel(wasteDAO);
+        userManagementPage = new UserManagementPanel(userDAO);
+        reportPage = new ReportPanel(reportDAO);
 
         JScrollPane homeScroll = new JScrollPane(homePage);
         homeScroll.setBorder(null);
@@ -80,15 +109,16 @@ public class Inventory {
         // Add to CardLayout
         mainContent.add(batchDetailView, "BatchDetails");
         mainContent.add(homeScroll, "Home");
+        mainContent.add(userManagementPage, "Manage Users");
         mainContent.add(productsPage, "Products");
         mainContent.add(salesPage, "Sales");
         mainContent.add(supplierPage, "Suppliers");
-        mainContent.add(batchPage, "Batches");
         mainContent.add(stockPage, "Stock");
         mainContent.add(customerPage, "Customers");
         mainContent.add(historyPage, "History");
         mainContent.add(auditPage, "Audit");
         mainContent.add(wastePage, "Waste");
+        mainContent.add(reportPage, "Reports");
 
         frame.add(createHeader(), BorderLayout.NORTH);
         frame.add(createSidebar(), BorderLayout.WEST);
@@ -99,7 +129,6 @@ public class Inventory {
         frame.setVisible(true);
 
         // --- WASTE NOTIFICATION LOGIC ---
-        // Trigger the check for expired items after UI is visible
         if (!UserSession.getUserRole().equals("cashier")) {
             Timer timer = new Timer(1500, e -> {
                 NotificationManager.checkExpirations(wasteDAO, frame, UserSession.getCurrentUser().getUserId());
@@ -107,6 +136,10 @@ public class Inventory {
             timer.setRepeats(false);
             timer.start();
         }
+
+        //
+        RFIDService rfidService = new RFIDService(userDAO, auditDAO);
+        rfidService.start();
     }
 
     private JPanel createHeader() {
@@ -136,12 +169,16 @@ public class Inventory {
         String role = UserSession.getUserRole();
 
         addSidebarButton(sidebar, "Home");
+
+        if (role.equals("admin")){
+            addSidebarButton(sidebar, "Manage Users");
+        }
+
         addSidebarButton(sidebar, "Products");
         addSidebarButton(sidebar, "Sales");
         addSidebarButton(sidebar, "Customers");
 
         if (role.equals("admin") || role.equals("pharmacist") || role.equals("manager")) {
-            addSidebarButton(sidebar, "Batches");
             addSidebarButton(sidebar, "Stock");
             addSidebarButton(sidebar, "Suppliers");
             addSidebarButton(sidebar, "Waste");
@@ -149,6 +186,7 @@ public class Inventory {
 
         if (role.equals("admin") || role.equals("manager")) {
             addSidebarButton(sidebar, "History");
+            addSidebarButton(sidebar, "Reports");
             addSidebarButton(sidebar, "Audit");
         }
 
@@ -177,7 +215,6 @@ public class Inventory {
         container.add(btn);
     }
 
-
     private void refreshPanelData(String item) {
         if (item.equals("Home")) homePage.refreshData();
         if (item.equals("Suppliers")) supplierPage.refreshData();
@@ -186,7 +223,8 @@ public class Inventory {
         if (item.equals("History")) historyPage.refreshData();
         if (item.equals("Batches")) batchPage.refreshData();
         if (item.equals("Audit")) auditPage.refreshData();
-        if (item.equals("Waste")) wastePage.refreshData(); // Ensure waste refreshes
+        if (item.equals("Waste")) wastePage.refreshData();
+        if (item.equals("Reports")) reportPage.refreshData(); // Integrated refresh logic
     }
 
     public static void showBatchPanel(int itemId, String itemName) {

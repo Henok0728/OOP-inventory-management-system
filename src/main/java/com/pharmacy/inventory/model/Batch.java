@@ -28,7 +28,7 @@ public class Batch {
         this.status = "active";
         this.receivedDate = receivedDate;
     }
-    // Add this constructor to Batch.java
+
     public Batch(String batchNumber, int itemId, int quantity, String expirationDate, double purchasePrice, double sellingPrice) {
         this.batchNumber = batchNumber;
         this.itemId = itemId;
