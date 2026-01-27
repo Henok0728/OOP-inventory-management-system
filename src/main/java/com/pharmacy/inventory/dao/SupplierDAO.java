@@ -33,6 +33,10 @@ public class SupplierDAO {
         return list;
     }
 
+    public DefaultTableModel getAllSuppliersModel() {
+        return getSupplierTableModel(getAllSuppliers());
+    }
+
     public boolean addSupplier(Supplier s) {
         String sql = "INSERT INTO suppliers (name, contact, phone_number, email, address, license_number, payment_terms) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?)";
@@ -77,11 +81,9 @@ public class SupplierDAO {
         return list;
     }
 
-    /**
-     * Link an Item to a Supplier in the 'item_suppliers' table.
-     */
     public void linkItemToSupplier(int itemId, int supplierId) {
-        String sql = "INSERT INTO item_suppliers (item_id, supplied_id) VALUES (?, ?)";
+        String sql = "INSERT INTO item_suppliers (item_id, supplied_id) VALUES (?, ?) " +
+                "ON DUPLICATE KEY UPDATE item_id = item_id"; // Prevents crashes on double-links
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, itemId);
@@ -113,7 +115,7 @@ public class SupplierDAO {
         return model;
     }
 
-    // Utility method to convert DB rows to Java Objects
+
     private Supplier mapResultSetToSupplier(ResultSet rs) throws SQLException {
         return new Supplier(
                 rs.getInt("supplier_id"),
@@ -127,7 +129,7 @@ public class SupplierDAO {
         );
     }
 
-    // Get total count for the first KPI card
+
     public int getTotalSuppliersCount() {
         String sql = "SELECT COUNT(*) FROM suppliers";
         try (Connection conn = dataSource.getConnection();
@@ -145,12 +147,9 @@ public class SupplierDAO {
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             if (rs.next()) return rs.getInt(1);
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         return 0;
-    }
-
-
-    public DefaultTableModel getAllSuppliersModel() {
-        return getSupplierTableModel(getAllSuppliers());
     }
 }
