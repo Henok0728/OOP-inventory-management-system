@@ -6,10 +6,13 @@ public class User {
     private String email;
     private String role;
     private String password;
+    private String rfidTag;
+    private boolean inWarehouse; // Changed to boolean for easier logic toggling
 
     public User() {
     }
 
+    // Updated constructor to include new fields if needed
     public User(long userId, String name, String email, String password, String role) {
         this.userId = userId;
         this.name = name;
@@ -18,6 +21,7 @@ public class User {
         this.role = role;
     }
 
+    // Getters and Setters
     public long getUserId() {
         return userId;
     }
@@ -56,5 +60,21 @@ public class User {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getRfidTag() {
+        return rfidTag;
+    }
+
+    public void setRfidTag(String rfidTag) {
+        this.rfidTag = rfidTag;
+    }
+
+    public boolean isInWarehouse() {
+        return inWarehouse;
+    }
+
+    public void setInWarehouse(boolean inWarehouse) {
+        this.inWarehouse = inWarehouse;
     }
 }

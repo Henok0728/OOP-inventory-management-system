@@ -102,6 +102,8 @@ public class SalesDAO {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
+
+
             if (rs.next()) {
                 return rs.getDouble(1);
             }

@@ -35,6 +35,7 @@ public class HomePanel extends JPanel {
 
         // Real Profit (ETB)
         double profit = salesDAO.getTodaysProfit();
+        salesDAO.getTodaysProfit();
         kpiContainer.add(createKpiCard("Today's Profit", String.format("%.2f ETB", profit), new Color(40, 167, 69)));
 
         // Real Revenue (ETB)

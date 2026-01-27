@@ -1,6 +1,7 @@
 package com.pharmacy.inventory.ui;
 
 import com.pharmacy.inventory.dao.*;
+import com.pharmacy.inventory.service.RFIDService;
 import com.pharmacy.inventory.util.UserSession;
 import com.pharmacy.inventory.ui.NotificationManager;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -135,6 +136,10 @@ public class Inventory {
             timer.setRepeats(false);
             timer.start();
         }
+
+        //
+        RFIDService rfidService = new RFIDService(userDAO, auditDAO);
+        rfidService.start();
     }
 
     private JPanel createHeader() {
