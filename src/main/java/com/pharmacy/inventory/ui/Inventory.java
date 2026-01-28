@@ -197,7 +197,7 @@ public class Inventory {
             addSidebarButton(sidebar, "Reports");
             addSidebarButton(sidebar, "Audit");
         }
-        addSidebarButton(sidebar,"About us");
+     
         JButton logoutBtn = new JButton("Logout");
         logoutBtn.setPreferredSize(new Dimension(180, 40));
         logoutBtn.setBackground(new Color(192, 57, 43));
