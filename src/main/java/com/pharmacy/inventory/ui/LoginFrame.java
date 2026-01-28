@@ -34,7 +34,7 @@ public class LoginFrame extends JFrame {
         header.setLayout(new GridBagLayout());
         JLabel welcome = new JLabel("Phramacy Inventory Management System ");
         welcome.setForeground(Color.WHITE);
-        welcome.setFont(new Font("SansSerif", Font.BOLD, 27));
+        welcome.setFont(new Font("SansSerif", Font.BOLD, 23));
         header.add(welcome);
 
         // Login Card
