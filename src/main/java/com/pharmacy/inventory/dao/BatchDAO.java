@@ -16,12 +16,11 @@ public class BatchDAO {
     private DataSource dataSource;
 
     public boolean addBatch(Batch batch) {
-
+        // Business Logic Validation: Ensure Profitability
         if (batch.getSellingPrice() <= batch.getPurchasePrice()) {
             System.err.println("Validation Error: Selling price must be higher than purchase price.");
             return false;
         }
-
 
         String sql = "INSERT INTO batches (batch_number, item_id, quantity_received, quantity_remaining, " +
                 "manufactured_date, expiration_date, purchase_price, selling_price, " +
@@ -31,27 +30,32 @@ public class BatchDAO {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-
+            // Auto-generate batch number if empty
             String bNum = (batch.getBatchNumber() == null || batch.getBatchNumber().isEmpty())
                     ? "BCH-" + System.currentTimeMillis() : batch.getBatchNumber();
 
             pstmt.setString(1, bNum);
             pstmt.setInt(2, batch.getItemId());
             pstmt.setInt(3, batch.getQuantityReceived());
-            pstmt.setInt(4, batch.getQuantityReceived());
-            pstmt.setString(5, batch.getManufacturedDate());
-            pstmt.setString(6, batch.getExpirationDate());
+            pstmt.setInt(4, batch.getQuantityReceived()); // Remaining starts at Received
+
+            // Safety: Using Date.valueOf to ensure YYYY-MM-DD format is enforced
+            pstmt.setDate(5, Date.valueOf(batch.getManufacturedDate()));
+            pstmt.setDate(6, Date.valueOf(batch.getExpirationDate()));
+
             pstmt.setDouble(7, batch.getPurchasePrice());
             pstmt.setDouble(8, batch.getSellingPrice());
             pstmt.setString(9, batch.getStorageLocation());
             pstmt.setString(10, batch.getStatus() == null ? "active" : batch.getStatus());
 
             return pstmt.executeUpdate() > 0;
-        } catch (SQLException e) {
+        } catch (SQLException | IllegalArgumentException e) {
             System.err.println("Error adding batch: " + e.getMessage());
             return false;
         }
     }
+
+    // --- KPI & Reporting Methods
 
     public DefaultTableModel getLowStockBatchesModel() {
         DefaultTableModel model = new DefaultTableModel(new String[]{"Item Name", "Batch #", "Qty Left"}, 0);
@@ -75,6 +79,7 @@ public class BatchDAO {
 
     public DefaultTableModel getExpiringBatchesModel() {
         DefaultTableModel model = new DefaultTableModel(new String[]{"Item Name", "Batch #", "Expiry Date"}, 0);
+        // Look ahead 30 days for expiring stock
         String sql = "SELECT i.name, b.batch_number, b.expiration_date " +
                 "FROM batches b JOIN items i ON b.item_id = i.item_id " +
                 "WHERE b.expiration_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) " +
@@ -104,11 +109,11 @@ public class BatchDAO {
         columns.add("Location");
 
         Vector<Vector<Object>> data = new Vector<>();
-
+        // FEFO Logic: Order by expiration_date so oldest stock is sold first
         String sql = "SELECT batch_id, batch_number, quantity_remaining, purchase_price, " +
                 "expiration_date, storage_location " +
                 "FROM batches " +
-                "WHERE item_id = ? AND quantity_remaining > 0 " +
+                "WHERE item_id = ? AND quantity_remaining > 0 AND status = 'active' " +
                 "ORDER BY expiration_date ASC";
 
         try (Connection conn = dataSource.getConnection();

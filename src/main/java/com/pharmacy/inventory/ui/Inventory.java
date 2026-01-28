@@ -101,7 +101,7 @@ public class Inventory {
         wastePage = new WastePanel(wasteDAO);
         userManagementPage = new UserManagementPanel(userDAO);
         reportPage = new ReportPanel(reportDAO);
-        purchaseOrderPage = new PurchaseOrderPanel(purchaseDAO, supplierDAO, auditDAO);
+        purchaseOrderPage = new PurchaseOrderPanel(purchaseDAO, supplierDAO, itemDAO, auditDAO);
 
         JScrollPane homeScroll = new JScrollPane(homePage);
         homeScroll.setBorder(null);

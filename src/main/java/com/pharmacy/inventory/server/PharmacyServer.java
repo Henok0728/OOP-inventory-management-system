@@ -1,6 +1,8 @@
 package com.pharmacy.inventory.server;
 
 import com.pharmacy.inventory.dao.ItemDAO;
+import com.pharmacy.inventory.ui.SalesPanel;
+
 import com.pharmacy.inventory.model.Item;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpHandler;
@@ -49,7 +51,7 @@ public class PharmacyServer {
             int statusCode = 200;
 
             try {
-                // Extract barcode from ?code=XXXXXXXX
+
                 if (query != null && query.contains("code=")) {
                     String barcode = query.split("code=")[1].trim();
                     System.out.println("📥 Phone Scanned Barcode: " + barcode);
@@ -60,11 +62,10 @@ public class PharmacyServer {
                         response = String.format("{\"status\":\"found\", \"name\":\"%s\", \"price\":%.2f}",
                                 item.getName(), item.getRetailPrice());
 
-                        // --- UI INTEGRATION ---
-                        // This updates your Desktop UI without crashing it
+
                         SwingUtilities.invokeLater(() -> {
                             System.out.println("📢 Action: Displaying " + item.getName() + " on Desktop UI");
-                            // You can call inventory.showProduct(item) here
+//                            barcodeSearchF.setText(barcode)
                         });
                     } else {
                         response = "{\"status\":\"error\", \"message\":\"Medicine not found in database\"}";
@@ -85,7 +86,7 @@ public class PharmacyServer {
     private class SearchHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            // Logic for manual search from phone
+
             String query = exchange.getRequestURI().getQuery().split("=")[1];
             Item item = itemDAO.findItemByBarcode(query);
             String response = (item != null) ? "{\"name\":\"" + item.getName() + "\"}" : "{\"error\":\"none\"}";
