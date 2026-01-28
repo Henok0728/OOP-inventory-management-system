@@ -51,14 +51,14 @@ public:
     }
 
     void open() {
-        for (int i = 0; i <= 180; i++) {
+        for (int i = 0; i <= 110; i++) {
             s.write(i);
             delay(15);
         }
     }
 
     void close() {
-        for (int i = 180; i >= 0; i--) {
+        for (int i = 110; i >= 0; i--) {
             s.write(i);
             delay(15);
         }
