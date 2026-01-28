@@ -341,6 +341,28 @@ public class SalesPanel extends JPanel {
         barcodeSearchF.setText("");
     }
 
+
+    public void remoteBarcodeScanned(String code) {
+        if (code == null || code.isEmpty()) return;
+
+        SwingUtilities.invokeLater(() -> {
+            // 1. Update the search field so the user can see what was scanned
+            barcodeSearchF.setText(code);
+
+            // 2. Trigger the existing search logic
+            // This will find the product, add to cart, or show the selection dialog
+            processSearch();
+
+            // 3. Optional: Bring the window to front if it was minimized
+            Window window = SwingUtilities.getWindowAncestor(this);
+            if (window != null) {
+                window.toFront();
+            }
+
+            System.out.println("📥 Remote Barcode Processed: " + code);
+        });
+    }
+
     private void addResultToCart(DefaultTableModel res, int row) {
         int id = (int) res.getValueAt(row, 0);
         String name = res.getValueAt(row, 1).toString();

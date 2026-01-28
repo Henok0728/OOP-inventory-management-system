@@ -27,7 +27,7 @@ public class RFIDService {
             port.setParity(SerialPort.NO_PARITY);
 
             // Set timeout to Semi-Blocking to allow the loop to run smoothly
-            port.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 0, 0);
+//            port.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 0, 0);
 
             if (port.openPort()) {
                 System.out.println("SUCCESS: Listening for RFID on COM7...");
