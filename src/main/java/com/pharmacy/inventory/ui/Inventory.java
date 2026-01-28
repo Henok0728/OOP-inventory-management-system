@@ -80,7 +80,7 @@ public class Inventory {
 
     public void prepareGUI() {
 
-        frame = new JFrame("Pharmacy Management System v1.0");
+        frame = new JFrame("Pharmacy Management System V1.5");
         frame.setSize(1350, 850);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
@@ -152,7 +152,7 @@ public class Inventory {
         header.setBackground(new Color(52, 73, 94));
         header.setPreferredSize(new Dimension(0, 50));
 
-        JLabel title = new JLabel("  PHARMACY OS");
+        JLabel title = new JLabel("  PHARMACETUAL INVENTORY MANAGEMENT SYSTEM");
         title.setForeground(Color.WHITE);
         title.setFont(new Font("SansSerif", Font.BOLD, 18));
 
