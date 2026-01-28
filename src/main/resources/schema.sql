@@ -230,6 +230,7 @@ create table if not exists users
     email         varchar(255)                        not null,
     password_hash varchar(255)                        not null,
     role          varchar(50)                         not null,
+    rfidtag       varchar(12)                         unique,
     created_at    timestamp default CURRENT_TIMESTAMP not null,
     constraint email
     unique (email),
