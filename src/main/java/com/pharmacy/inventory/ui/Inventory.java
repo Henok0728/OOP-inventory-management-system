@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 
+
 import javax.swing.*;
 import java.awt.*;
 
@@ -40,8 +41,6 @@ public class Inventory {
     private UserManagementPanel userManagementPage;
     private ReportPanel reportPage;
     private PurchaseOrderPanel purchaseOrderPage;
-    private AboutappPage profile;
-
     @PostConstruct
     public void init() {
 
@@ -103,7 +102,7 @@ public class Inventory {
         userManagementPage = new UserManagementPanel(userDAO);
         reportPage = new ReportPanel(reportDAO);
         purchaseOrderPage = new PurchaseOrderPanel(purchaseDAO, supplierDAO, auditDAO);
-        profile = new AboutappPage();
+        
 
         JScrollPane homeScroll = new JScrollPane(homePage);
         homeScroll.setBorder(null);
@@ -125,7 +124,7 @@ public class Inventory {
         mainContent.add(auditPage, "Audit");
         mainContent.add(wastePage, "Waste");
         mainContent.add(reportPage, "Reports");
-        mainContent.add(profile,"About App");
+       
 
 
         frame.add(createHeader(), BorderLayout.NORTH);
@@ -155,7 +154,7 @@ public class Inventory {
         header.setBackground(new Color(52, 73, 94));
         header.setPreferredSize(new Dimension(0, 50));
 
-        JLabel title = new JLabel("  PHARMACY INVENTORY MANAGEMENT SYSTEM");
+        JLabel title = new JLabel(" PHARMACY INVENTORY MANAGEMENT SYSTEM Built by Team Arada");
         title.setForeground(Color.WHITE);
         title.setFont(new Font("SansSerif", Font.BOLD, 18));
 
@@ -235,7 +234,6 @@ public class Inventory {
         if (item.equals("Audit")) auditPage.refreshData();
         if (item.equals("Waste")) wastePage.refreshData();
         if (item.equals("Reports")) reportPage.refreshData(); // Integrated refresh logic
-        if (item.equals("About us")) profile.refreshData();
     }
 
     public static void showBatchPanel(int itemId, String itemName) {
