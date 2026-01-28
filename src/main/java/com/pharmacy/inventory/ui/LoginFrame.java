@@ -17,7 +17,7 @@ public class LoginFrame extends JFrame {
         this.userDAO = userDAO;
         this.inventory = inventory;
 
-        setTitle("Pharmacy Inventory Management System");
+        setTitle("Pharmacy Inventory Management System V1.5");
         setSize(500, 550);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -32,9 +32,9 @@ public class LoginFrame extends JFrame {
         header.setBackground(new Color(41, 128, 185));
         header.setPreferredSize(new Dimension(0, 150));
         header.setLayout(new GridBagLayout());
-        JLabel welcome = new JLabel("Phramacy Inventory Management System ");
+        JLabel welcome = new JLabel("PHARMACY INVENTORY MANAGEMENT SYSTEM");
         welcome.setForeground(Color.WHITE);
-        welcome.setFont(new Font("SansSerif", Font.BOLD, 23));
+        welcome.setFont(new Font("SansSerif", Font.BOLD, 19));
         header.add(welcome);
 
         // Login Card
@@ -103,7 +103,7 @@ public class LoginFrame extends JFrame {
             inventory.prepareGUI();
             this.dispose();
         } else {
-            JOptionPane.showMessageDialog(this, "Invalid email or password \n y=try again.", "Auth Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Invalid email or password \n Try again!", "Authentication Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 }

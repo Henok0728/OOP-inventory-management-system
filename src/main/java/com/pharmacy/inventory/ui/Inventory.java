@@ -152,7 +152,7 @@ public class Inventory {
         header.setBackground(new Color(52, 73, 94));
         header.setPreferredSize(new Dimension(0, 50));
 
-        JLabel title = new JLabel("  PHARMACETUAL INVENTORY MANAGEMENT SYSTEM");
+        JLabel title = new JLabel("  PHARMACY INVENTORY MANAGEMENT SYSTEM");
         title.setForeground(Color.WHITE);
         title.setFont(new Font("SansSerif", Font.BOLD, 18));
 
