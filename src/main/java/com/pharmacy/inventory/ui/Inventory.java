@@ -1,6 +1,7 @@
 package com.pharmacy.inventory.ui;
 
 import com.pharmacy.inventory.dao.*;
+import com.pharmacy.inventory.server.PharmacyServer;
 import com.pharmacy.inventory.service.RFIDService;
 import com.pharmacy.inventory.util.UserSession;
 import com.pharmacy.inventory.ui.NotificationManager;
@@ -23,6 +24,7 @@ public class Inventory {
     @Autowired private WasteDAO wasteDAO;
     @Autowired private ReportDAO reportDAO; // Added ReportDAO
     @Autowired private PurchaseDAO purchaseDAO;
+    @Autowired private PharmacyServer pharmacyServer;
 
     private static BatchDetailsPanel batchDetailView;
     private JFrame frame;
@@ -41,6 +43,8 @@ public class Inventory {
     private UserManagementPanel userManagementPage;
     private ReportPanel reportPage;
     private PurchaseOrderPanel purchaseOrderPage;
+    private ProductsPanel productsPage;
+    private SalesPanel salesPage;
 
     @PostConstruct
     public void init() {
@@ -92,7 +96,12 @@ public class Inventory {
         // Initialize Specialized Panels
         homePage = new HomePanel(salesDAO, itemDAO, batchDAO);
         productsPage = new ProductsPanel(itemDAO, auditDAO);
+<<<<<<< Updated upstream
         SalesPanel salesPage = new SalesPanel(salesDAO, itemDAO, customerDAO, auditDAO);
+=======
+        salesPage = new SalesPanel(salesDAO, itemDAO, customerDAO, auditDAO);
+        pharmacyServer.setSalesPanel(salesPage);
+>>>>>>> Stashed changes
         supplierPage = new SupplierPanel(supplierDAO, purchaseDAO);
         stockPage = new StockEntryPanel(batchDAO, itemDAO, supplierDAO, purchaseDAO, auditDAO);
         customerPage = new CustomerPanel(customerDAO);
