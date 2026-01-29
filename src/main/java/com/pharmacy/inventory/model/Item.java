@@ -121,8 +121,7 @@ public class Item {
 
     @Override
     public String toString() {
-        // This makes the JComboBox show "Amoxicillin - 500mg (Capsule)"
-        // instead of "com.pharmacy.inventory.model.Item@5f2a"
+
         return name + " - " + (strength != null ? strength : "") + " (" + (dosageForm != null ? dosageForm : "N/A") + ")";
     }
 }

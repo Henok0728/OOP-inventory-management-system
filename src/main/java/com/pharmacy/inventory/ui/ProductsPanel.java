@@ -1,7 +1,7 @@
 package com.pharmacy.inventory.ui;
 
 import com.pharmacy.inventory.dao.ItemDAO;
-import com.pharmacy.inventory.dao.AuditDAO; // Ensure this is imported
+import com.pharmacy.inventory.dao.AuditDAO;
 import com.pharmacy.inventory.model.Item;
 import com.pharmacy.inventory.util.UserSession;
 import javax.swing.*;
@@ -21,7 +21,6 @@ public class ProductsPanel extends JPanel {
     private DefaultTableModel tableModel;
     private Integer selectedItemId = null;
 
-    // Core Item Fields
     private final JTextField nameF = new JTextField(), genericF = new JTextField(), brandF = new JTextField();
     private final JTextField barcodeF = new JTextField(), dosageF = new JTextField(), strengthF = new JTextField();
     private final JTextField priceF = new JTextField(), searchF = new JTextField(), reorderF = new JTextField();
@@ -31,41 +30,81 @@ public class ProductsPanel extends JPanel {
     });
     private final JCheckBox prescriptionCheck = new JCheckBox("Prescription Required");
 
-    // Updated Constructor to include AuditDAO
     public ProductsPanel(ItemDAO itemDAO, AuditDAO auditDAO) {
         this.itemDAO = itemDAO;
         this.auditDAO = auditDAO;
-        setLayout(new BorderLayout(10, 10));
 
-        // --- SEARCH BAR (NORTH) ---
-        searchF.setBorder(new TitledBorder("Search Database (Name/Barcode/Generic)"));
+        setLayout(new BorderLayout(15, 15));
+        setBackground(new Color(245, 245, 245));
+        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        String role = UserSession.getUserRole();
+        boolean isAdmin = role.equals("admin") || role.equals("manager");
+
+        JPanel northPanel = new JPanel(new BorderLayout(10, 10));
+        northPanel.setOpaque(false);
+
+        JLabel headerLabel = new JLabel("Pharmacy Inventory Catalog");
+        headerLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
+        headerLabel.setForeground(new Color(44, 62, 80));
+
+        searchF.setPreferredSize(new Dimension(0, 50));
+        searchF.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        searchF.setBorder(new TitledBorder(BorderFactory.createLineBorder(new Color(189, 195, 199)), "Search Database"));
         setupSearchLogic();
 
-        // --- TABLE (CENTER) ---
+        northPanel.add(headerLabel, BorderLayout.NORTH);
+        northPanel.add(searchF, BorderLayout.CENTER);
+
         table = new JTable();
+        table.setRowHeight(35);
+        table.setShowGrid(false);
+        table.setSelectionBackground(new Color(232, 242, 255));
+        table.setSelectionForeground(Color.BLACK);
+
         loadTableData();
         JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setBorder(new TitledBorder("Inventory Items"));
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(210, 210, 210)));
+        scrollPane.getViewport().setBackground(Color.WHITE);
 
-        // --- FORM (EAST) ---
-        JPanel formPanel = createEntryForm();
+        if (isAdmin) {
+            add(createEntryForm(), BorderLayout.EAST);
+        }
 
-        add(searchF, BorderLayout.NORTH);
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        actionPanel.setOpaque(false);
+
+        JButton viewInventoryBtn = new JButton("📊 VIEW STOCK & BATCH HISTORY");
+        viewInventoryBtn.setBackground(new Color(41, 128, 185)); // Professional Blue
+        viewInventoryBtn.setForeground(Color.WHITE);
+        viewInventoryBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
+        viewInventoryBtn.setPreferredSize(new Dimension(300, 45));
+        viewInventoryBtn.setFocusPainted(false);
+        viewInventoryBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        viewInventoryBtn.addActionListener(e -> {
+            if (selectedItemId != null) {
+                Inventory.showBatchPanel(selectedItemId, nameF.getText());
+            } else {
+                JOptionPane.showMessageDialog(this, "Please select an item from the table first.");
+            }
+        });
+
+        actionPanel.add(viewInventoryBtn);
+
+        add(northPanel, BorderLayout.NORTH);
         add(scrollPane, BorderLayout.CENTER);
-        add(formPanel, BorderLayout.EAST);
+        add(actionPanel, BorderLayout.SOUTH);
     }
 
     private JPanel createEntryForm() {
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setPreferredSize(new Dimension(350, 0));
-        panel.setBorder(new TitledBorder("Item Information"));
+        panel.setPreferredSize(new Dimension(380, 0)); // Slightly wider for 2x2 buttons
+        panel.setBorder(new TitledBorder("Manage Product Specifications"));
+        panel.setBackground(Color.WHITE);
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 10, 5, 10);
+        gbc.insets = new Insets(4, 10, 4, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
-
-        // Determine permissions
-        String role = UserSession.getUserRole();
-        boolean isAdmin = role.equals("admin") || role.equals("manager");
 
         int row = 0;
         addFormRow(panel, "Name:", nameF, gbc, row++);
@@ -75,77 +114,56 @@ public class ProductsPanel extends JPanel {
         addFormRow(panel, "Category:", categoryCombo, gbc, row++);
         addFormRow(panel, "Dosage:", dosageF, gbc, row++);
         addFormRow(panel, "Strength:", strengthF, gbc, row++);
-        addFormRow(panel, "Retail Price (ETB):", priceF, gbc, row++);
-        addFormRow(panel, "Reorder Level:", reorderF, gbc, row++);
+        addFormRow(panel, "Price (ETB):", priceF, gbc, row++);
+        addFormRow(panel, "Reorder:", reorderF, gbc, row++);
 
         gbc.gridx = 1; gbc.gridy = row++;
+        prescriptionCheck.setOpaque(false);
         panel.add(prescriptionCheck, gbc);
 
-        // CRUD Buttons
-        JPanel btnPanel = new JPanel(new GridLayout(3, 2, 5, 5));
-        JButton addBtn = new JButton("Register Item");
-        JButton updateBtn = new JButton("Update Item");
-        JButton deleteBtn = new JButton("Remove Item");
-        JButton clearBtn = new JButton("Clear Form");
-        JButton viewBatchesBtn = new JButton("View Inventory");
+        JPanel btnGrid = new JPanel(new GridLayout(2, 2, 8, 8));
+        btnGrid.setOpaque(false);
 
-        // Apply Security Restrictions
-        addBtn.setEnabled(isAdmin);
-        updateBtn.setEnabled(isAdmin);
-        deleteBtn.setEnabled(isAdmin);
+        JButton addBtn = createStyledButton("Register", new Color(41, 128, 185));
+        JButton updateBtn = createStyledButton("Update", new Color(39, 174, 96));
+        JButton deleteBtn = createStyledButton("Remove", new Color(192, 57, 43));
+        JButton clearBtn = createStyledButton("Clear", new Color(127, 140, 141));
 
-        // Disable fields if not admin to prevent confusion
-        if (!isAdmin) {
-            String msg = "Locked: View Only Access";
-            nameF.setEditable(false); genericF.setEditable(false);
-            priceF.setEditable(false); barcodeF.setEditable(false);
-            addBtn.setToolTipText(msg);
-            updateBtn.setToolTipText(msg);
-            deleteBtn.setToolTipText(msg);
-        }
-
-        viewBatchesBtn.setBackground(new Color(52, 152, 219));
-        viewBatchesBtn.setForeground(Color.WHITE);
-
-        btnPanel.add(addBtn); btnPanel.add(updateBtn);
-        btnPanel.add(deleteBtn); btnPanel.add(clearBtn);
-        btnPanel.add(viewBatchesBtn);
+        btnGrid.add(addBtn);
+        btnGrid.add(updateBtn);
+        btnGrid.add(deleteBtn);
+        btnGrid.add(clearBtn);
 
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
-        gbc.insets = new Insets(20, 10, 10, 10);
-        panel.add(btnPanel, gbc);
+        gbc.insets = new Insets(15, 10, 10, 10);
+        panel.add(btnGrid, gbc);
 
-        // Listeners
         addBtn.addActionListener(e -> saveAction(true));
         updateBtn.addActionListener(e -> saveAction(false));
         deleteBtn.addActionListener(e -> deleteAction());
         clearBtn.addActionListener(e -> clearFields());
-        viewBatchesBtn.addActionListener(e -> {
-            if (selectedItemId != null) {
-                Inventory.showBatchPanel(selectedItemId, nameF.getText());
-            } else {
-                JOptionPane.showMessageDialog(this, "Select a product to view stock history.");
-            }
-        });
 
         return panel;
     }
 
+    private JButton createStyledButton(String text, Color bg) {
+        JButton btn = new JButton(text);
+        btn.setBackground(bg);
+        btn.setForeground(Color.WHITE);
+        btn.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btn.setFocusPainted(false);
+        btn.setPreferredSize(new Dimension(0, 35));
+        return btn;
+    }
+
     private void addFormRow(JPanel p, String label, JComponent comp, GridBagConstraints gbc, int row) {
-        gbc.gridwidth = 1;
-        gbc.gridx = 0;
-        gbc.gridy = row;
+        gbc.gridwidth = 1; gbc.gridx = 0; gbc.gridy = row;
         p.add(new JLabel(label), gbc);
         gbc.gridx = 1;
         p.add(comp, gbc);
     }
 
     private void saveAction(boolean isNew) {
-        if (!UserSession.getUserRole().equals("admin") && !UserSession.getUserRole().equals("manager")) {
-            JOptionPane.showMessageDialog(this, "Unauthorized: Only administrators can modify items.");
-            return;
-        }
-
         try {
             Item item = new Item();
             item.setName(nameF.getText());
@@ -161,28 +179,24 @@ public class ProductsPanel extends JPanel {
 
             if (isNew) {
                 itemDAO.addItem(item);
-                auditDAO.log("REGISTER_NEW_ITEM", "items", null); // Logging the creation
-                JOptionPane.showMessageDialog(this, "New item registered in catalog!");
+                auditDAO.log("REGISTER_NEW_ITEM", "items", null);
+                JOptionPane.showMessageDialog(this, "Item added to system!");
             } else if (selectedItemId != null) {
                 item.setItem_id(selectedItemId);
                 itemDAO.updateItem(item);
-                auditDAO.log("UPDATE_ITEM_SPECS", "items", selectedItemId); // Logging the update
-                JOptionPane.showMessageDialog(this, "Item specifications updated!");
+                auditDAO.log("UPDATE_ITEM_SPECS", "items", selectedItemId);
+                JOptionPane.showMessageDialog(this, "Item updated!");
             }
-
             loadTableData();
             clearFields();
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Retail Price and Reorder Level must be numeric.");
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+            JOptionPane.showMessageDialog(this, "Check numeric fields: " + ex.getMessage());
         }
     }
 
     public void loadTableData() {
         tableModel = itemDAO.getAllItems();
         table.setModel(tableModel);
-        table.setRowHeight(30);
         table.setDefaultRenderer(Object.class, new ProductRenderer());
 
         table.getSelectionModel().addListSelectionListener(e -> {
@@ -201,8 +215,7 @@ public class ProductsPanel extends JPanel {
 
                 if (tableModel.getColumnCount() > 10) {
                     Object rxValue = tableModel.getValueAt(r, 10);
-                    boolean isRx = rxValue != null &&
-                            (rxValue.toString().equals("1") || rxValue.toString().equalsIgnoreCase("true"));
+                    boolean isRx = rxValue != null && (rxValue.toString().equals("1") || rxValue.toString().equalsIgnoreCase("true"));
                     prescriptionCheck.setSelected(isRx);
                 }
             }
@@ -216,15 +229,11 @@ public class ProductsPanel extends JPanel {
     }
 
     private void deleteAction() {
-        if (!UserSession.getUserRole().equals("admin")) {
-            JOptionPane.showMessageDialog(this, "Unauthorized: Only administrators can delete items.");
-            return;
-        }
         if (selectedItemId == null) return;
-        int confirm = JOptionPane.showConfirmDialog(this, "Delete this item?", "Confirm", JOptionPane.YES_NO_OPTION);
+        int confirm = JOptionPane.showConfirmDialog(this, "Delete item?", "Confirm", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             itemDAO.removeItem(selectedItemId);
-            auditDAO.log("DELETE_ITEM", "items", selectedItemId); // Logging the deletion
+            auditDAO.log("DELETE_ITEM", "items", selectedItemId);
             loadTableData();
             clearFields();
         }
@@ -232,9 +241,7 @@ public class ProductsPanel extends JPanel {
 
     private void clearFields() {
         JTextField[] fields = {nameF, genericF, brandF, barcodeF, dosageF, strengthF, priceF, reorderF};
-        for (JTextField field : fields) {
-            field.setText("");
-        }
+        for (JTextField field : fields) field.setText("");
         categoryCombo.setSelectedIndex(0);
         prescriptionCheck.setSelected(false);
         selectedItemId = null;
@@ -250,7 +257,7 @@ public class ProductsPanel extends JPanel {
                 if (tableModel == null) return;
                 TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(tableModel);
                 table.setRowSorter(sorter);
-                sorter.setRowFilter(RowFilter.regexFilter("(?i)" + searchF.getText())); // (?i) stand
+                sorter.setRowFilter(RowFilter.regexFilter("(?i)" + searchF.getText()));
             }
         });
     }
@@ -260,17 +267,21 @@ public class ProductsPanel extends JPanel {
         public Component getTableCellRendererComponent(JTable t, Object v, boolean isS, boolean hasF, int r, int c) {
             Component cell = super.getTableCellRendererComponent(t, v, isS, hasF, r, c);
             if (!isS) {
-                cell.setBackground(r % 2 == 0 ? Color.WHITE : new Color(248, 248, 248));
+                cell.setBackground(r % 2 == 0 ? Color.WHITE : new Color(245, 245, 245));
             }
             if (t.getColumnName(c).toLowerCase().contains("prescript")) {
                 boolean req = v != null && (v.toString().equals("1") || v.toString().equalsIgnoreCase("true"));
                 setText(req ? "RX REQUIRED" : "OTC");
-                setForeground(req ? new Color(150, 0, 0) : new Color(0, 100, 0));
+                setForeground(req ? new Color(192, 57, 43) : new Color(39, 174, 96));
                 setFont(getFont().deriveFont(Font.BOLD));
             } else {
                 setForeground(Color.BLACK);
             }
             return cell;
         }
+    }
+
+    public void refreshData() {
+        loadTableData();
     }
 }

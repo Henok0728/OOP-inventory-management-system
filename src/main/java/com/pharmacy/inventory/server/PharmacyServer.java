@@ -19,7 +19,6 @@ public class PharmacyServer {
     @Autowired
     private ItemDAO itemDAO;
 
-    // Static reference to the UI to allow the server to "push" barcodes to the screen
     private static SalesPanel salesPanel;
 
     public void setSalesPanel(SalesPanel panel) {
@@ -30,20 +29,17 @@ public class PharmacyServer {
     public void startServer() {
         new Thread(() -> {
             try {
-                // Listening on all network interfaces on port 8080
                 HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
 
-                // Endpoint for the phone scanner (Barcode to Cart)
                 server.createContext("/api/scan", new ScanHandler());
 
-                // Endpoint for general item search (Information only)
                 server.createContext("/api/search", new SearchHandler());
 
                 server.setExecutor(null);
                 server.start();
-                System.out.println("🚀 Pharmacy Server is LIVE at http://192.168.10.60:8080");
+                System.out.println("Pharmacy Server is LIVE at http://192.168.10.60:8080");
             } catch (IOException e) {
-                System.err.println("❌ Critical Error: Could not start server: " + e.getMessage());
+                System.err.println("Critical Error: Could not start server: " + e.getMessage());
             }
         }).start();
     }
@@ -60,7 +56,7 @@ public class PharmacyServer {
                 if (query != null && query.contains("content=")) {
                     // Extracting the 'content' value from the query string
                     String barcode = query.split("content=")[1].split("&")[0];
-                    System.out.println("📥 Phone Scanned Barcode: " + barcode);
+                    System.out.println("Phone Scanned Barcode: " + barcode);
 
                     // 1. Verify if the item exists in DB
                     Item item = itemDAO.findItemByBarcode(barcode);
@@ -107,7 +103,6 @@ public class PharmacyServer {
 
     private void sendJsonResponse(HttpExchange exchange, String response, int code) throws IOException {
         exchange.getResponseHeaders().set("Content-Type", "application/json");
-        // Ensure CORS is allowed so the phone can connect without issues
         exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
         exchange.sendResponseHeaders(code, response.getBytes().length);
         try (OutputStream os = exchange.getResponseBody()) {

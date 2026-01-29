@@ -31,6 +31,7 @@ public class Inventory {
 
     private HomePanel homePage;
     private SupplierPanel supplierPage;
+    private ProductsPanel productsPage;
     private StockEntryPanel stockPage;
     private CustomerPanel customerPage;
     private SalesHistoryPanel historyPage;
@@ -90,7 +91,7 @@ public class Inventory {
 
         // Initialize Specialized Panels
         homePage = new HomePanel(salesDAO, itemDAO, batchDAO);
-        ProductsPanel productsPage = new ProductsPanel(itemDAO, auditDAO);
+        productsPage = new ProductsPanel(itemDAO, auditDAO);
         SalesPanel salesPage = new SalesPanel(salesDAO, itemDAO, customerDAO, auditDAO);
         supplierPage = new SupplierPanel(supplierDAO, purchaseDAO);
         stockPage = new StockEntryPanel(batchDAO, itemDAO, supplierDAO, purchaseDAO, auditDAO);
@@ -223,6 +224,7 @@ public class Inventory {
 
     private void refreshPanelData(String item) {
         if (item.equals("Home")) homePage.refreshData();
+        if (item.equals("Products")) productsPage.refreshData();
         if (item.equals("Suppliers")) supplierPage.refreshData();
         if (item.equals("Stock")) stockPage.refreshData();
         if (item.equals("Purchase Orders")) purchaseOrderPage.refreshData();
