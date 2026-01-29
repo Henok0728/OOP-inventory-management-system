@@ -229,7 +229,7 @@ public class SalesPanel extends JPanel {
         String dateStr = sdf.format(new Date());
 
         sb.append("      CITY CENTER PHARMACY      \n");
-        sb.append("    123 Health St, Addis Ababa  \n");
+        sb.append("    5- KILO street, Addis Ababa  \n");
         sb.append("================================\n");
         sb.append(String.format("DATE:    %s\n", dateStr));
         sb.append(String.format("PATIENT: %s\n", custName));
@@ -346,20 +346,15 @@ public class SalesPanel extends JPanel {
         if (code == null || code.isEmpty()) return;
 
         SwingUtilities.invokeLater(() -> {
-            // 1. Update the search field so the user can see what was scanned
-            barcodeSearchF.setText(code);
-
-            // 2. Trigger the existing search logic
-            // This will find the product, add to cart, or show the selection dialog
+            String cleanBarcode = code.replaceAll("[^0-9]", "");
+            barcodeSearchF.setText(cleanBarcode);
             processSearch();
-
-            // 3. Optional: Bring the window to front if it was minimized
             Window window = SwingUtilities.getWindowAncestor(this);
             if (window != null) {
                 window.toFront();
             }
 
-            System.out.println("📥 Remote Barcode Processed: " + code);
+            System.out.println("📥 Remote Barcode Processed: " + cleanBarcode);
         });
     }
 
