@@ -354,7 +354,7 @@ public class SalesPanel extends JPanel {
                 window.toFront();
             }
 
-            System.out.println("📥 Remote Barcode Processed: " + cleanBarcode);
+            System.out.println("Barcode Processed: " + cleanBarcode);
         });
     }
 
